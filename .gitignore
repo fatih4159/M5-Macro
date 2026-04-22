@@ -91,3 +91,4 @@ wifi_credentials.h
 
 node_modules/
 dist/
+/.claude
