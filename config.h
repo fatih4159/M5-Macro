@@ -23,6 +23,11 @@
 // Standard-Pause zwischen zwei Schritten (ms), wenn kein DELAY: angegeben
 #define STEP_GAP_MS      10
 
+// ── Energiesparmodus ───────────────────────────────────────────────────────
+#define ENERGY_SAVE_TIMEOUT_DEFAULT    30   // Sekunden bis Display gedimmt wird
+#define ENERGY_SAVE_DIM_BRIGHTNESS     10   // Helligkeit im Energiesparmodus (0–255)
+#define ENERGY_SAVE_ACTIVE_BRIGHTNESS  128  // Normale Helligkeit (0–255)
+
 // ── WiFi / Web-Editor ──────────────────────────────────────────────────────
 // Das Geraet oeffnet einen eigenen WLAN-Hotspot (Access Point).
 // Verbinde dich mit diesem Netzwerk und oeffne http://192.168.4.1

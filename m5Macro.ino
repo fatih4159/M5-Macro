@@ -36,6 +36,7 @@ USBHIDKeyboard Keyboard;
 #include "macro_executor.h"
 #include "ui.h"
 #include "web_server.h"
+#include "energy_save.h"
 
 // ── Zustandsvariablen ───────────────────────────────────────────────────────
 static bool  s_executing   = false;   // Verhindert Doppel-Ausfuehrung
@@ -52,14 +53,23 @@ static void handle_encoder() {
     int steps = s_enc_accum / ENCODER_PPR;
     s_enc_accum %= ENCODER_PPR;
 
-    if (steps != 0 && !s_executing) {
-        int current = ui_get_selected();
-        int count   = macro_store_count();
-        if (count > 0) {
-            // Modulo-Arithmetik mit Wrap-Around
-            int next = ((current + steps) % count + count) % count;
-            ui_set_selected(next);
+    if (steps != 0) {
+        // Im Energiesparmodus nur aufwecken, Auswahl nicht aendern
+        if (energy_save_is_dimmed()) {
+            energy_save_activity();
+            s_enc_accum = 0;
+            return;
         }
+        if (!s_executing) {
+            int current = ui_get_selected();
+            int count   = macro_store_count();
+            if (count > 0) {
+                // Modulo-Arithmetik mit Wrap-Around
+                int next = ((current + steps) % count + count) % count;
+                ui_set_selected(next);
+            }
+        }
+        energy_save_activity();
     }
 }
 
@@ -98,9 +108,15 @@ static void handle_button() {
     if (s_executing) return;
 
     if (M5Dial.BtnA.wasPressed()) {
+        // Im Energiesparmodus nur aufwecken, kein Makro ausfuehren
+        if (energy_save_is_dimmed()) {
+            energy_save_activity();
+            return;
+        }
         int idx = ui_get_selected();
         if (macro_store_count() > 0) {
             s_executing = true;
+            energy_save_activity();
             ui_show_running(idx);
             macro_execute(idx);
             ui_show_idle();
@@ -123,7 +139,6 @@ void setup() {
     auto cfg = M5.config();
     M5Dial.begin(cfg, true, false);
     M5Dial.Display.setRotation(2);
-    M5Dial.Display.setBrightness(128);
     M5Dial.Display.setSwapBytes(true);
 
     // Encoder-Referenzposition setzen
@@ -139,7 +154,10 @@ void setup() {
     // 5. UI aufbauen
     ui_init();
 
-    // 6. Web-Editor starten (WiFi-AP + HTTP-Server)
+    // 6. Energiesparmodus initialisieren (setzt auch Display-Helligkeit)
+    energy_save_init();
+
+    // 7. Web-Editor starten (WiFi-AP + HTTP-Server)
     web_server_init();
     ui_set_hint(("http://" + web_server_ip()).c_str());
 }
@@ -163,6 +181,9 @@ void loop() {
 
     // Eingehende HTTP-Anfragen verarbeiten (nicht-blockierend)
     web_server_handle();
+
+    // Energiesparmodus pruefen und ggf. Display dimmen
+    energy_save_update();
 
     // ~5 ms Pause → ~200 fps Deckelung, gibt RTOS-Tasks Luft
     delay(5);

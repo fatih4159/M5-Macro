@@ -2,6 +2,7 @@
 #include "macro_store.h"
 #include "ui.h"
 #include "config.h"
+#include "energy_save.h"
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
@@ -35,7 +36,7 @@ h1{color:#ffffff;font-size:16px;letter-spacing:2px}
 /* Settings Modal */
 #settings-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center}
 #settings-modal.show{display:flex}
-.modal-box{background:#111111;border:1px solid #333333;border-radius:6px;width:320px;max-width:95vw;padding:20px;display:flex;flex-direction:column;gap:14px}
+.modal-box{background:#111111;border:1px solid #333333;border-radius:6px;width:320px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between}
 .modal-ttl{color:#ffffff;font-size:14px;letter-spacing:1px}
 .modal-x{background:none;border:none;color:#666666;font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
@@ -124,6 +125,15 @@ input[type=number]{-moz-appearance:textfield}
 .kh{font-size:10px;color:#222222;margin-left:auto}
 .status{font-size:11px;min-height:16px;padding:2px 0;transition:opacity .5s}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0a0a}::-webkit-scrollbar-thumb{background:#222222;border-radius:2px}
+.es-sw{position:relative;display:inline-block;width:36px;height:20px;flex-shrink:0}
+.es-sw input{opacity:0;width:0;height:0}
+.es-sl{position:absolute;cursor:pointer;inset:0;background:#2a2a2a;border-radius:20px;transition:.2s}
+.es-sl:before{content:"";position:absolute;width:14px;height:14px;left:3px;bottom:3px;background:#555;border-radius:50%;transition:.2s}
+input:checked+.es-sl{background:#444}
+input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
+.es-row{display:flex;align-items:center;gap:8px}
+.es-rng{flex:1;accent-color:#888;cursor:pointer}
+.es-val{color:#666;font-size:11px;min-width:26px;text-align:right;flex-shrink:0}
 @media(min-width:600px){
   .hbg{display:none}
   .sb-x{display:none!important}
@@ -174,6 +184,32 @@ input[type=number]{-moz-appearance:textfield}
       <button class="btn-restart" onclick="doRestart()">&#8635; Neustart</button>
       <button class="btn-boot" onclick="doBootloader()">&#9660; Bootloader</button>
     </div>
+    <hr class="modal-sep">
+    <div class="modal-fg">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <label class="modal-lbl" style="margin:0">&#9889; Energiesparmodus</label>
+        <label class="es-sw"><input type="checkbox" id="cfg-es-en"><span class="es-sl"></span></label>
+      </div>
+    </div>
+    <div class="modal-fg">
+      <label class="modal-lbl">Inaktivitaet bis Dimmen (Sekunden)</label>
+      <input type="number" class="modal-inp" id="cfg-es-to" min="5" max="3600" value="30">
+    </div>
+    <div class="modal-fg">
+      <label class="modal-lbl">Dim-Helligkeit (0–255)</label>
+      <div class="es-row">
+        <input type="range" class="es-rng" id="cfg-es-db" min="0" max="255" value="10" oninput="document.getElementById('cfg-es-dbv').textContent=this.value">
+        <span class="es-val" id="cfg-es-dbv">10</span>
+      </div>
+    </div>
+    <div class="modal-fg">
+      <label class="modal-lbl">Normale Helligkeit (10–255)</label>
+      <div class="es-row">
+        <input type="range" class="es-rng" id="cfg-es-ab" min="10" max="255" value="128" oninput="document.getElementById('cfg-es-abv').textContent=this.value">
+        <span class="es-val" id="cfg-es-abv">128</span>
+      </div>
+    </div>
+    <button class="btn-modal-save" onclick="saveEnergy()" style="width:100%">&#9889; Energiesparmodus speichern</button>
     <div class="modal-st" id="modal-st"></div>
   </div>
 </div>
@@ -213,13 +249,18 @@ function openSB(){document.getElementById('sb').classList.add('open');document.g
 function closeSB(){document.getElementById('sb').classList.remove('open');document.getElementById('ov').classList.remove('show');}
 
 function openSettings(){
-  fetch('/api/settings').then(function(r){return r.json();}).then(function(j){
+  Promise.all([
+    fetch('/api/settings').then(function(r){return r.json();}).catch(function(){return{};}),
+    fetch('/api/energy').then(function(r){return r.json();}).catch(function(){return{};})
+  ]).then(function(res){
+    var j=res[0],e=res[1];
     document.getElementById('cfg-ssid').value=j.ssid||'';
     document.getElementById('cfg-pass').value='';
     document.getElementById('modal-st').textContent='';
-    document.getElementById('settings-modal').classList.add('show');
-  }).catch(function(){
-    document.getElementById('modal-st').textContent='';
+    if(e.enabled!==undefined)document.getElementById('cfg-es-en').checked=!!e.enabled;
+    if(e.timeout_s!==undefined)document.getElementById('cfg-es-to').value=e.timeout_s;
+    if(e.dim_br!==undefined){document.getElementById('cfg-es-db').value=e.dim_br;document.getElementById('cfg-es-dbv').textContent=e.dim_br;}
+    if(e.active_br!==undefined){document.getElementById('cfg-es-ab').value=e.active_br;document.getElementById('cfg-es-abv').textContent=e.active_br;}
     document.getElementById('settings-modal').classList.add('show');
   });
 }
@@ -416,6 +457,20 @@ function st(msg,color){
   if(color==='#aaaaaa')stTimer=setTimeout(function(){el.style.opacity='0';},2200);
 }
 
+async function saveEnergy(){
+  var en=document.getElementById('cfg-es-en').checked?'1':'0';
+  var to=parseInt(document.getElementById('cfg-es-to').value)||30;
+  var db=parseInt(document.getElementById('cfg-es-db').value)||10;
+  var ab=parseInt(document.getElementById('cfg-es-ab').value)||128;
+  mst('Speichern...');
+  try{
+    var r=await fetch('/api/energy',{method:'POST',body:new URLSearchParams({enabled:en,timeout_s:to,dim_br:db,active_br:ab})});
+    var j=await r.json();
+    if(j.ok)mst('Energiesparmodus gespeichert!');
+    else mst('Fehler: '+(j.err||'?'));
+  }catch(e){mst('Verbindungsfehler');}
+}
+
 document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();}});
 load();
 </script>
@@ -563,6 +618,42 @@ static void handle_api_restart_bootloader() {
     esp_restart();
 }
 
+static void handle_api_energy_get() {
+    Preferences prefs;
+    prefs.begin("energy", true);
+    bool     enabled   = prefs.getBool("enabled",   true);
+    uint32_t timeout_s = prefs.getUInt("timeout_s", ENERGY_SAVE_TIMEOUT_DEFAULT);
+    uint8_t  dim_br    = prefs.getUInt("dim_br",    ENERGY_SAVE_DIM_BRIGHTNESS);
+    uint8_t  active_br = prefs.getUInt("active_br", ENERGY_SAVE_ACTIVE_BRIGHTNESS);
+    prefs.end();
+    String json = "{\"enabled\":"    + String(enabled ? "true" : "false") +
+                  ",\"timeout_s\":"  + String(timeout_s) +
+                  ",\"dim_br\":"     + String(dim_br) +
+                  ",\"active_br\":"  + String(active_br) + "}";
+    server.send(200, "application/json", json);
+}
+
+static void handle_api_energy_post() {
+    Preferences prefs;
+    prefs.begin("energy", false);
+    if (server.hasArg("enabled"))
+        prefs.putBool("enabled", server.arg("enabled") == "1");
+    if (server.hasArg("timeout_s")) {
+        int t = server.arg("timeout_s").toInt();
+        if (t < 5)   t = 5;
+        if (t > 3600) t = 3600;
+        prefs.putUInt("timeout_s", (uint32_t)t);
+    }
+    if (server.hasArg("dim_br"))
+        prefs.putUInt("dim_br", (uint32_t)constrain(server.arg("dim_br").toInt(), 0, 255));
+    if (server.hasArg("active_br"))
+        prefs.putUInt("active_br", (uint32_t)constrain(server.arg("active_br").toInt(), 10, 255));
+    prefs.end();
+
+    energy_save_init();   // Neue Einstellungen sofort uebernehmen
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
 static void handle_not_found() {
     server.send(404, "text/plain", "Not found");
 }
@@ -589,6 +680,8 @@ void web_server_init() {
     server.on("/api/settings",           HTTP_POST, handle_api_settings_post);
     server.on("/api/restart",            HTTP_POST, handle_api_restart);
     server.on("/api/restart-bootloader", HTTP_POST, handle_api_restart_bootloader);
+    server.on("/api/energy",             HTTP_GET,  handle_api_energy_get);
+    server.on("/api/energy",             HTTP_POST, handle_api_energy_post);
     server.onNotFound(handle_not_found);
 
     server.begin();
