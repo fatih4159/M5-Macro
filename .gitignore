@@ -1,0 +1,93 @@
+# Arduino / ESP32 .gitignore
+
+# Compiled binaries
+
+*.elf
+*.bin
+*.hex
+
+# Arduino build folders
+
+build/
+build-*/
+*.ino.bin
+*.ino.elf
+
+# Arduino IDE temporary files
+
+*.tmp
+*.log
+*.cache
+*.bak
+*.orig
+
+# Arduino IDE v2
+
+.arduinoIDE/
+.sketch/
+
+# Arduino CLI
+
+arduino-cli.yaml
+
+# VS Code (optional, if used)
+
+.vscode/
+*.code-workspace
+
+# PlatformIO (if accidentally used)
+
+.pio/
+.pioenvs/
+.piolibdeps/
+
+# macOS
+
+.DS_Store
+
+# Windows
+
+Thumbs.db
+ehthumbs.db
+
+# Linux
+
+*~
+
+# ESP32 specific
+
+*.partitions.bin
+*.bootloader.bin
+
+# LittleFS / SPIFFS images
+
+*.spiffs.bin
+*.littlefs.bin
+
+# Serial monitor logs
+
+*.log
+
+# Backup files
+
+*.bak
+*.backup
+
+# Temporary files
+
+tmp/
+temp/
+
+# User-specific configs (optional)
+
+config.local.h
+
+# Credentials (important!)
+
+secrets.h
+wifi_credentials.h
+
+# Node/Web build (if you later add frontend tooling)
+
+node_modules/
+dist/
