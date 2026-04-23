@@ -4,33 +4,33 @@
 #define DISPLAY_WIDTH    240
 #define DISPLAY_HEIGHT   240
 
-// LVGL Render-Puffer (Zeilen pro Flush-Block)
-// 240 * 40 * 2 Byte = ~19 KB – gut fuer den internen SRAM
+// LVGL render buffer (lines per flush block)
+// 240 * 40 * 2 bytes = ~19 KB – fits well in internal SRAM
 #define LV_BUF_LINES     40
 
 // ── Encoder ────────────────────────────────────────────────────────────────
-// M5Dial Encoder: 4 Impulse pro Raststellung
+// M5Dial encoder: 4 pulses per detent
 #define ENCODER_PPR      4
 
 // ── Parser ─────────────────────────────────────────────────────────────────
-#define MACRO_MAX_STEPS  128         // Max. Schritte pro Makro (Parser-Limit)
-#define STEP_TEXT_LEN    128         // Max. Textlaenge fuer TEXT:-Befehle
-#define STEP_MOD_MAX     4           // Max. Modifier-Tasten pro Schritt
+#define MACRO_MAX_STEPS  128         // Max steps per macro (parser limit)
+#define STEP_TEXT_LEN    128         // Max text length for TEXT: commands
+#define STEP_MOD_MAX     4           // Max modifier keys per step
 
-// ── Ausfuehrung ────────────────────────────────────────────────────────────
-// Pause zwischen Tastendruck und -loslassen (ms)
+// ── Execution ──────────────────────────────────────────────────────────────
+// Delay between key press and release (ms)
 #define KEY_HOLD_MS      15
-// Standard-Pause zwischen zwei Schritten (ms), wenn kein DELAY: angegeben
+// Default delay between two steps (ms) if no DELAY: is specified
 #define STEP_GAP_MS      10
 
-// ── Energiesparmodus ───────────────────────────────────────────────────────
-#define ENERGY_SAVE_TIMEOUT_DEFAULT    30   // Sekunden bis Display gedimmt wird
-#define ENERGY_SAVE_DIM_BRIGHTNESS     10   // Helligkeit im Energiesparmodus (0–255)
-#define ENERGY_SAVE_ACTIVE_BRIGHTNESS  128  // Normale Helligkeit (0–255)
+// ── Energy saving ──────────────────────────────────────────────────────────
+#define ENERGY_SAVE_TIMEOUT_DEFAULT    30   // Seconds until display dims
+#define ENERGY_SAVE_DIM_BRIGHTNESS     10   // Brightness in energy-saving mode (0–255)
+#define ENERGY_SAVE_ACTIVE_BRIGHTNESS  128  // Normal brightness (0–255)
 
-// ── WiFi / Web-Editor ──────────────────────────────────────────────────────
-// Das Geraet oeffnet einen eigenen WLAN-Hotspot (Access Point).
-// Verbinde dich mit diesem Netzwerk und oeffne http://192.168.4.1
+// ── WiFi / Web editor ──────────────────────────────────────────────────────
+// The device opens its own WiFi hotspot (Access Point).
+// Connect to this network and open http://192.168.4.1
 #define WIFI_AP_SSID     "m5Macro"
-#define WIFI_AP_PASS     "m5macro1"   // mind. 8 Zeichen fuer WPA2
+#define WIFI_AP_PASS     "m5macro1"   // min. 8 characters for WPA2
 #define WEB_SERVER_PORT  80

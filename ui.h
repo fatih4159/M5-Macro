@@ -1,26 +1,26 @@
 #pragma once
 #include <lvgl.h>
 
-// Erstellt die LVGL-Oberflaeche fuer den Makro-Selektor.
-// Muss nach macro_store_init() aufgerufen werden.
+// Creates the LVGL interface for the macro selector.
+// Must be called after macro_store_init().
 void ui_init();
 
-// Setzt den Anzeigestatus auf "Makro wird ausgefuehrt".
-// Erzwingt einen LVGL-Render-Pass (lv_timer_handler).
+// Sets the display state to "macro is running".
+// Forces an LVGL render pass (lv_timer_handler).
 void ui_show_running(int index);
 
-// Setzt den Anzeigestatus zurueck auf "Bereit".
+// Resets the display state to "ready".
 void ui_show_idle();
 
-// Gibt den aktuell im Roller ausgewaehlten Index zurueck.
+// Returns the currently selected index in the roller.
 int  ui_get_selected();
 
-// Setzt den Roller-Index programmatisch (z.B. nach Reload).
+// Sets the roller index programmatically (e.g. after reload).
 void ui_set_selected(int index);
 
-// Baut den Roller-Inhalt aus dem aktuellen macro_store neu auf.
-// Aufruf nach jeder Makro-Aenderung ueber den Web-Editor.
+// Rebuilds the roller content from the current macro_store.
+// Call after every macro change via the web editor.
 void ui_reload();
 
-// Setzt den Hinweistext in der Statuszeile (z.B. WLAN-Adresse).
+// Sets the hint text in the status line (e.g. WiFi address).
 void ui_set_hint(const char* text);

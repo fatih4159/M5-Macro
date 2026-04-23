@@ -2,25 +2,25 @@
 #include "macro_store.h"
 #include "config.h"
 
-// ── Dark Mode Farbpalette ────────────────────────────────────────────────────
-// Alle Farben als RGB-Hex für lv_color_hex()
-#define CLR_BG          0x000000   // Tiefschwarz
-#define CLR_SURFACE     0x000000   // Roller-Hintergrund
-#define CLR_ACCENT      0x808080   // Mittleres Grau (Rahmen ausgewählter Eintrag)
-#define CLR_SEL_BG      0x1A1A1A   // Hintergrund des ausgewählten Eintrags
-#define CLR_TEXT        0xFFFFFF   // Heller Text (ausgewählt / aktiv)
-#define CLR_TEXT_DIM    0x888888   // Gedimmter Text (nicht ausgewählt)
-#define CLR_SUCCESS     0xFFFFFF   // Weiß während Makro-Ausführung
-#define CLR_HINT        0x404040   // Status-Hint unten (sehr dezent)
+// ── Dark mode color palette ──────────────────────────────────────────────────
+// All colors as RGB hex for lv_color_hex()
+#define CLR_BG          0x000000   // Deep black
+#define CLR_SURFACE     0x000000   // Roller background
+#define CLR_ACCENT      0x808080   // Medium gray (border of selected entry)
+#define CLR_SEL_BG      0x1A1A1A   // Background of selected entry
+#define CLR_TEXT        0xFFFFFF   // Bright text (selected / active)
+#define CLR_TEXT_DIM    0x888888   // Dimmed text (not selected)
+#define CLR_SUCCESS     0xFFFFFF   // White during macro execution
+#define CLR_HINT        0x404040   // Status hint at bottom (very subtle)
 
-// ── Widget-Pointer (Datei-Scope) ─────────────────────────────────────────────
+// ── Widget pointers (file scope) ─────────────────────────────────────────────
 static lv_obj_t* s_title  = nullptr;
 static lv_obj_t* s_roller = nullptr;
 static lv_obj_t* s_status = nullptr;
 static int       s_count  = 0;
-static String    s_hint   = "Drehen=Wahlen  |  Druck=Start";
+static String    s_hint   = "Turn=Select  |  Press=Run";
 
-// ── App-Titel oben ───────────────────────────────────────────────────────────
+// ── App title at top ─────────────────────────────────────────────────────────
 static void create_title(lv_obj_t* parent) {
     s_title = lv_label_create(parent);
     lv_label_set_text(s_title, "m5Macro");
@@ -30,9 +30,9 @@ static void create_title(lv_obj_t* parent) {
     lv_obj_set_style_text_color(s_title, lv_color_hex(CLR_ACCENT), 0);
 }
 
-// ── Makro-Roller (zentral) ───────────────────────────────────────────────────
+// ── Macro roller (center) ────────────────────────────────────────────────────
 static void create_roller(lv_obj_t* parent) {
-    // Optionen-String aus dem Makro-Store aufbauen
+    // Build options string from macro store
     String opts = "";
     s_count = macro_store_count();
     for (int i = 0; i < s_count; i++) {
@@ -42,7 +42,7 @@ static void create_roller(lv_obj_t* parent) {
             opts += String(m->name);
         }
     }
-    if (opts.length() == 0) opts = "(keine Makros)";
+    if (opts.length() == 0) opts = "(no macros)";
 
     s_roller = lv_roller_create(parent);
     lv_roller_set_options(s_roller, opts.c_str(), LV_ROLLER_MODE_INFINITE);
@@ -50,7 +50,7 @@ static void create_roller(lv_obj_t* parent) {
     lv_obj_set_width(s_roller, 230);
     lv_obj_align(s_roller, LV_ALIGN_CENTER, 0, 6);
 
-    // Hauptstil: dunkler Hintergrund, gedimmter Text
+    // Main style: dark background, dimmed text
     lv_obj_set_style_bg_color   (s_roller, lv_color_hex(CLR_SURFACE), LV_PART_MAIN);
     lv_obj_set_style_bg_opa     (s_roller, LV_OPA_COVER,              LV_PART_MAIN);
     lv_obj_set_style_border_width(s_roller, 0,                         LV_PART_MAIN);
@@ -59,7 +59,7 @@ static void create_roller(lv_obj_t* parent) {
     lv_obj_set_style_pad_left   (s_roller, 10,                         LV_PART_MAIN);
     lv_obj_set_style_pad_right  (s_roller, 10,                         LV_PART_MAIN);
 
-    // Ausgewählter Eintrag: Akzentfarbe, größere Schrift, subtiler Rand
+    // Selected entry: accent color, larger font, subtle border
     lv_obj_set_style_bg_color    (s_roller, lv_color_hex(CLR_SEL_BG),  LV_PART_SELECTED);
     lv_obj_set_style_bg_opa      (s_roller, LV_OPA_COVER,              LV_PART_SELECTED);
     lv_obj_set_style_text_color  (s_roller, lv_color_hex(CLR_TEXT),    LV_PART_SELECTED);
@@ -69,7 +69,7 @@ static void create_roller(lv_obj_t* parent) {
     lv_obj_set_style_border_opa  (s_roller, LV_OPA_50,                 LV_PART_SELECTED);
 }
 
-// ── Status-Hint unten ────────────────────────────────────────────────────────
+// ── Status hint at bottom ────────────────────────────────────────────────────
 static void create_status(lv_obj_t* parent) {
     s_status = lv_label_create(parent);
     lv_label_set_text(s_status, s_hint.c_str());
@@ -81,12 +81,12 @@ static void create_status(lv_obj_t* parent) {
     lv_obj_set_style_text_color(s_status, lv_color_hex(CLR_HINT),  0);
 }
 
-// ── Öffentliche API ──────────────────────────────────────────────────────────
+// ── Public API ───────────────────────────────────────────────────────────────
 
 void ui_init() {
     lv_obj_t* scr = lv_scr_act();
 
-    // Bildschirm-Hintergrund
+    // Screen background
     lv_obj_set_style_bg_color(scr, lv_color_hex(CLR_BG),    0);
     lv_obj_set_style_bg_opa  (scr, LV_OPA_COVER,            0);
 
@@ -96,30 +96,30 @@ void ui_init() {
 }
 
 void ui_show_running(int index) {
-    // Status-Text: Name des laufenden Makros, grün
+    // Status text: name of running macro, green
     if (s_status) {
         const MacroInfo* m = macro_store_get(index);
-        String msg = String(">> ") + (m ? m->name : "Ausfuehren") + " ...";
+        String msg = String(">> ") + (m ? m->name : "Running") + " ...";
         lv_label_set_text(s_status, msg.c_str());
         lv_obj_set_style_text_color(s_status, lv_color_hex(CLR_SUCCESS), 0);
     }
 
-    // Titel: grün während Ausführung
+    // Title: green during execution
     if (s_title) {
         lv_obj_set_style_text_color(s_title, lv_color_hex(CLR_SUCCESS), 0);
     }
 
-    lv_timer_handler();  // Sofort neu zeichnen vor blockierender Ausführung
+    lv_timer_handler();  // Redraw immediately before blocking execution
 }
 
 void ui_show_idle() {
-    // Status-Text: Bedienhinweis, gedimmt
+    // Status text: usage hint, dimmed
     if (s_status) {
         lv_label_set_text(s_status, s_hint.c_str());
         lv_obj_set_style_text_color(s_status, lv_color_hex(CLR_HINT), 0);
     }
 
-    // Titel: zurück zu Akzentfarbe
+    // Title: back to accent color
     if (s_title) {
         lv_obj_set_style_text_color(s_title, lv_color_hex(CLR_ACCENT), 0);
     }
@@ -138,7 +138,7 @@ void ui_set_selected(int index) {
 }
 
 void ui_reload() {
-    // Roller-Optionen aus dem aktualisierten Makro-Store neu aufbauen
+    // Rebuild roller options from updated macro store
     String opts = "";
     s_count = macro_store_count();
     for (int i = 0; i < s_count; i++) {
@@ -148,7 +148,7 @@ void ui_reload() {
             opts += String(m->name);
         }
     }
-    if (opts.length() == 0) opts = "(keine Makros)";
+    if (opts.length() == 0) opts = "(no macros)";
 
     if (s_roller) {
         lv_roller_set_options(s_roller, opts.c_str(), LV_ROLLER_MODE_INFINITE);

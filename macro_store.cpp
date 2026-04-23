@@ -1,50 +1,50 @@
 #include "macro_store.h"
 #include <LittleFS.h>
 
-// ── Datei-Pfade ───────────────────────────────────────────────────────────────
-// Makros werden als /macros/00.txt … /macros/15.txt gespeichert.
-// Format: Zeile 1 = Name, Zeilen 2+ = Befehlsschritte.
+// ── File paths ────────────────────────────────────────────────────────────────
+// Macros are stored as /macros/00.txt … /macros/15.txt.
+// Format: line 1 = name, lines 2+ = command steps.
 static const char* MACRO_DIR = "/macros";
 
-// ── Interner Speicher ─────────────────────────────────────────────────────────
+// ── Internal storage ──────────────────────────────────────────────────────────
 static String   s_names[MAX_MACROS];
 static String   s_step_strs[MAX_MACROS][MAX_STEPS_STORED];
 static int      s_step_counts[MAX_MACROS];
 static int      s_count = 0;
 
-// Cache fuer die nach aussen sichtbare MacroInfo-Struktur
+// Cache for the externally visible MacroInfo structure
 static MacroInfo s_info[MAX_MACROS];
 
-static bool s_fs_ok = false;   // LittleFS erfolgreich gemountet?
+static bool s_fs_ok = false;   // LittleFS mounted successfully?
 
-// ── Default-Makros (Fallback falls kein Dateisystem) ──────────────────────────
+// ── Default macros (fallback if no filesystem) ────────────────────────────────
 struct DefaultMacro {
     const char* name;
-    const char* steps;   // '\n'-getrennt
+    const char* steps;   // '\n'-separated
 };
 
 static const DefaultMacro DEFAULTS[] = {
-    { "Alles kopieren+einf.", "CTRL+A\nDELAY:50\nCTRL+C\nDELAY:100\nCTRL+V" },
-    { "Speichern+Schliessen", "CTRL+S\nDELAY:300\nALT+F4"                    },
-    { "Rueckgaengig+Wieder.", "CTRL+Z\nDELAY:100\nCTRL+Z\nDELAY:100\nCTRL+Y"},
-    { "Screenshot",           "WIN+SHIFT+S"                                   },
-    { "Bildschirm sperren",   "WIN+L"                                         },
-    { "Task-Manager",         "CTRL+SHIFT+ESC"                                },
-    { "VS Code Terminal",     "CTRL+SHIFT+BACKTICK"                           },
-    { "Signatur tippen",      "TEXT:Mit freundlichen Gruessen\nENTER\nTEXT:Dein Name" },
+    { "Select all+paste",  "CTRL+A\nDELAY:50\nCTRL+C\nDELAY:100\nCTRL+V"                  },
+    { "Save+Close",        "CTRL+S\nDELAY:300\nALT+F4"                                     },
+    { "Undo+Redo",         "CTRL+Z\nDELAY:100\nCTRL+Z\nDELAY:100\nCTRL+Y"                 },
+    { "Screenshot",        "WIN+SHIFT+S"                                                    },
+    { "Lock screen",       "WIN+L"                                                          },
+    { "Task Manager",      "CTRL+SHIFT+ESC"                                                 },
+    { "VS Code Terminal",  "CTRL+SHIFT+BACKTICK"                                            },
+    { "Type signature",    "TEXT:Kind regards\nENTER\nTEXT:Your Name"                       },
 };
 static const int DEFAULT_COUNT = (int)(sizeof(DEFAULTS) / sizeof(DEFAULTS[0]));
 
-// ── Hilfsfunktionen ───────────────────────────────────────────────────────────
+// ── Helper functions ───────────────────────────────────────────────────────────
 
-// Dateiname fuer Slot i: /macros/00.txt … /macros/15.txt
+// Filename for slot i: /macros/00.txt … /macros/15.txt
 static String slot_path(int i) {
     char buf[24];
     snprintf(buf, sizeof(buf), "%s/%02d.txt", MACRO_DIR, i);
     return String(buf);
 }
 
-// Rebuild MacroInfo-Cache fuer Slot i aus den String-Arrays
+// Rebuild MacroInfo cache for slot i from string arrays
 static void rebuild_cache(int i) {
     strncpy(s_info[i].name, s_names[i].c_str(), MACRO_NAME_LEN);
     s_info[i].name[MACRO_NAME_LEN] = '\0';
@@ -54,8 +54,8 @@ static void rebuild_cache(int i) {
     }
 }
 
-// Einen Makro-Eintrag aus einem LittleFS-Dateiinhalt parsen
-// Format: Zeile 0 = Name, Zeilen 1+ = Schritte
+// Parse a macro entry from LittleFS file content
+// Format: line 0 = name, lines 1+ = steps
 static bool parse_file(int slot, const String& content) {
     int start = 0;
     int lineIdx = 0;
@@ -66,7 +66,7 @@ static bool parse_file(int slot, const String& content) {
         if (end == -1) end = content.length();
 
         String line = content.substring(start, end);
-        // Windows-Zeilenenden entfernen
+        // Strip Windows line endings
         if (line.endsWith("\r")) line = line.substring(0, line.length() - 1);
 
         if (lineIdx == 0) {
@@ -82,24 +82,24 @@ static bool parse_file(int slot, const String& content) {
     return (s_names[slot].length() > 0);
 }
 
-// Datei schreiben: Name in Zeile 1, Schritte ab Zeile 2
+// Write file: name on line 1, steps from line 2
 static bool write_file(int slot, const String& name, const String& steps_raw) {
     String path = slot_path(slot);
     File f = LittleFS.open(path, "w");
     if (!f) return false;
     f.println(name);
     f.print(steps_raw);
-    // Sicherstellen, dass letzte Zeile mit '\n' endet
+    // Ensure last line ends with '\n'
     if (!steps_raw.endsWith("\n")) f.println();
-    // Explizit in den Flash schreiben, bevor die Datei geschlossen wird.
-    // Ohne flush() koennte ein Stromabbruch unmittelbar nach dem Speichern
-    // dazu fuehren, dass die Daten noch im LittleFS-Puffer liegen und verloren gehen.
+    // Explicitly flush to flash before closing.
+    // Without flush() a power loss immediately after saving could leave
+    // data in the LittleFS buffer and lose it.
     f.flush();
     f.close();
     return true;
 }
 
-// Alle Makro-Dateien aus MACRO_DIR laden (sortiert 00 … 15)
+// Load all macro files from MACRO_DIR (sorted 00 … 15)
 static void load_all_from_fs() {
     s_count = 0;
     for (int i = 0; i < MAX_MACROS && s_count < MAX_MACROS; i++) {
@@ -118,7 +118,7 @@ static void load_all_from_fs() {
     }
 }
 
-// Alle Default-Makros auf LittleFS schreiben und laden
+// Write all default macros to LittleFS and load them
 static void write_defaults() {
     for (int i = 0; i < DEFAULT_COUNT && i < MAX_MACROS; i++) {
         write_file(i, String(DEFAULTS[i].name), String(DEFAULTS[i].steps));
@@ -126,12 +126,12 @@ static void write_defaults() {
     load_all_from_fs();
 }
 
-// Default-Makros nur in RAM laden (kein LittleFS)
+// Load default macros into RAM only (no LittleFS)
 static void load_defaults_ram() {
     s_count = 0;
     for (int i = 0; i < DEFAULT_COUNT && i < MAX_MACROS; i++) {
         s_names[i] = DEFAULTS[i].name;
-        // Schritte parsen
+        // Parse steps
         String raw = DEFAULTS[i].steps;
         int start = 0;
         s_step_counts[i] = 0;
@@ -149,14 +149,14 @@ static void load_defaults_ram() {
     }
 }
 
-// ── Oeffentliche API ─────────────────────────────────────────────────────────
+// ── Public API ───────────────────────────────────────────────────────────────
 
 void macro_store_init() {
-    // formatOnFail=true: Partition beim ersten Start oder nach Korruption einmalig formatieren.
-    // LittleFS ist power-loss-sicher; eine Neuformatierung tritt nur auf wenn
-    // das Dateisystem nie initialisiert wurde oder nicht reparierbar beschaedigt ist.
+    // formatOnFail=true: format partition on first boot or after corruption.
+    // LittleFS is power-loss-safe; reformatting only occurs when the
+    // filesystem was never initialized or is irreparably damaged.
     if (!LittleFS.begin(true, "/lfs", 10, "littlefs")) {
-        // Fallback: Partition-Label der default_8MB-Scheme versuchen
+        // Fallback: try default_8MB-scheme partition label
         if (!LittleFS.begin(true, "/lfs", 10, "spiffs")) {
             load_defaults_ram();
             s_fs_ok = false;
@@ -165,12 +165,12 @@ void macro_store_init() {
     }
     s_fs_ok = true;
 
-    // Verzeichnis anlegen falls noetig
+    // Create directory if needed
     if (!LittleFS.exists(MACRO_DIR)) {
         LittleFS.mkdir(MACRO_DIR);
     }
 
-    // Makros laden – wenn keine vorhanden, Defaults anlegen
+    // Load macros – if none exist, write defaults
     load_all_from_fs();
     if (s_count == 0) {
         write_defaults();
@@ -198,19 +198,19 @@ int macro_store_save(int id, const String& name, const String& steps_raw) {
     int target_slot;
 
     if (id == -1) {
-        // Neues Makro: naechsten freien Slot-Nummer finden
-        // Wir schreiben immer sequenziell, also naechste Nummer = s_count
+        // New macro: find next free slot number
+        // Always write sequentially, so next number = s_count
         if (s_count >= MAX_MACROS) return -1;
         target_slot = s_count;
     } else {
         if (id < 0 || id >= s_count) return -1;
-        // Bestehendes Makro: Slot-Nummer = id (Dateien wurden sequenziell
-        // angelegt, also stimmt Index = Slot-Nummer)
+        // Existing macro: slot number = id (files were written sequentially,
+        // so index = slot number)
         target_slot = id;
     }
 
     if (!s_fs_ok) {
-        // Nur im RAM aktualisieren
+        // Update RAM only
         s_names[target_slot] = name;
         s_step_counts[target_slot] = 0;
         String raw = steps_raw;
@@ -239,7 +239,7 @@ bool macro_store_delete(int id) {
     if (id < 0 || id >= s_count) return false;
 
     if (!s_fs_ok) {
-        // Nur RAM: Slots nach unten schieben
+        // RAM only: shift slots down
         for (int i = id; i < s_count - 1; i++) {
             s_names[i]       = s_names[i + 1];
             s_step_counts[i] = s_step_counts[i + 1];
@@ -252,10 +252,10 @@ bool macro_store_delete(int id) {
         return true;
     }
 
-    // 1. Zu loeschende Datei entfernen
+    // 1. Remove file to delete
     LittleFS.remove(slot_path(id));
 
-    // 2. Nachfolgende Dateien umbenennen (lueckenloses Durchnummerieren)
+    // 2. Rename subsequent files (keep numbering gap-free)
     for (int i = id; i < MAX_MACROS - 1; i++) {
         String next = slot_path(i + 1);
         if (LittleFS.exists(next)) {

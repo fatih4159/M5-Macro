@@ -3,7 +3,7 @@
 #include "macro_parser.h"
 #include "config.h"
 
-// ── Einzelnen Schritt ausfuehren ─────────────────────────────────────────────
+// ── Execute single step ──────────────────────────────────────────────────────
 static void executeStep(const MacroStep& s) {
     switch (s.type) {
 
@@ -26,7 +26,7 @@ static void executeStep(const MacroStep& s) {
             break;
 
         case STEP_COMBO:
-            // Modifier zuerst druecken
+            // Press modifiers first
             for (int i = 0; i < s.mod_count; i++) {
                 Keyboard.press(s.modifiers[i]);
             }
@@ -38,7 +38,7 @@ static void executeStep(const MacroStep& s) {
     }
 }
 
-// ── Makro ausfuehren ─────────────────────────────────────────────────────────
+// ── Execute macro ────────────────────────────────────────────────────────────
 void macro_execute(int index) {
     const MacroInfo* info = macro_store_get(index);
     if (!info) return;
@@ -48,5 +48,5 @@ void macro_execute(int index) {
         executeStep(step);
     }
 
-    Keyboard.releaseAll(); // Sicherheits-Release am Ende
+    Keyboard.releaseAll(); // Safety release at end
 }

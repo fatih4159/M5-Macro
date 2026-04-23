@@ -2,26 +2,26 @@
 #include <Arduino.h>
 #include "config.h"
 
-// ── Schritt-Typen ───────────────────────────────────────────────────────────
+// ── Step types ──────────────────────────────────────────────────────────────
 enum StepType : uint8_t {
-    STEP_KEY,    // einzelne Taste (kein Modifier)
-    STEP_COMBO,  // Modifier + Taste (z.B. CTRL+C)
-    STEP_TEXT,   // Text tippen (Keyboard.print)
-    STEP_DELAY,  // Verzoegerung in ms
+    STEP_KEY,    // single key (no modifier)
+    STEP_COMBO,  // modifier + key (e.g. CTRL+C)
+    STEP_TEXT,   // type text (Keyboard.print)
+    STEP_DELAY,  // delay in ms
 };
 
-// ── Einzelner Makro-Schritt ─────────────────────────────────────────────────
+// ── Single macro step ────────────────────────────────────────────────────────
 struct MacroStep {
     StepType type;
-    uint8_t  modifiers[STEP_MOD_MAX]; // Modifier-Keycodes (KEY_LEFT_CTRL etc.)
-    uint8_t  mod_count;               // Anzahl aktiver Modifier
-    uint8_t  keycode;                 // Haupt-Keycode
-    char     text[STEP_TEXT_LEN];     // Nur fuer STEP_TEXT
-    uint32_t delay_ms;                // Nur fuer STEP_DELAY
+    uint8_t  modifiers[STEP_MOD_MAX]; // modifier keycodes (KEY_LEFT_CTRL etc.)
+    uint8_t  mod_count;               // number of active modifiers
+    uint8_t  keycode;                 // main keycode
+    char     text[STEP_TEXT_LEN];     // only for STEP_TEXT
+    uint32_t delay_ms;                // only for STEP_DELAY
 };
 
-// ── Oeffentliche Funktion ───────────────────────────────────────────────────
-// Parst eine einzelne Zeile aus einer Makro-Datei.
-// Kommentarzeilen (#) und leere Zeilen ergeben STEP_DELAY mit delay_ms=0
-// (werden vom Executor ignoriert).
+// ── Public function ──────────────────────────────────────────────────────────
+// Parses a single line from a macro file.
+// Comment lines (#) and empty lines produce STEP_DELAY with delay_ms=0
+// (ignored by the executor).
 MacroStep parseLine(const String& line);
