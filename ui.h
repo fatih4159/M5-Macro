@@ -22,3 +22,6 @@ void ui_set_selected(int index);
 // Call after every macro change via the web editor.
 void ui_reload();
 
+// Reloads colors from NVS and applies them to the display immediately.
+void ui_apply_colors();
+

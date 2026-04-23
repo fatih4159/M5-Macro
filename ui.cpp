@@ -1,15 +1,27 @@
 #include "ui.h"
 #include "macro_store.h"
 #include "config.h"
+#include <Preferences.h>
 
-// ── Dark mode color palette ──────────────────────────────────────────────────
-// All colors as RGB hex for lv_color_hex()
-#define CLR_BG          0x000000   // Deep black
-#define CLR_SURFACE     0x000000   // Roller background
-#define CLR_ACCENT      0x808080   // Medium gray (border of selected entry)
-#define CLR_SEL_BG      0x1A1A1A   // Background of selected entry
-#define CLR_TEXT        0xFFFFFF   // Bright text (selected / active)
-#define CLR_TEXT_DIM    0x888888   // Dimmed text (not selected)
+// ── Runtime color palette (loaded from NVS, defaults match original design) ──
+static uint32_t c_bg       = 0x000000;
+static uint32_t c_surface  = 0x000000;
+static uint32_t c_accent   = 0x808080;
+static uint32_t c_sel_bg   = 0x1A1A1A;
+static uint32_t c_text     = 0xFFFFFF;
+static uint32_t c_text_dim = 0x888888;
+
+static void load_colors() {
+    Preferences prefs;
+    prefs.begin("colors", true);
+    c_bg       = prefs.getUInt("bg",       0x000000);
+    c_surface  = prefs.getUInt("surface",  0x000000);
+    c_accent   = prefs.getUInt("accent",   0x808080);
+    c_sel_bg   = prefs.getUInt("sel_bg",   0x1A1A1A);
+    c_text     = prefs.getUInt("text",     0xFFFFFF);
+    c_text_dim = prefs.getUInt("text_dim", 0x888888);
+    prefs.end();
+}
 
 // ── Widget pointers (file scope) ─────────────────────────────────────────────
 static lv_obj_t* s_roller = nullptr;
@@ -36,20 +48,20 @@ static void create_roller(lv_obj_t* parent) {
     lv_obj_align(s_roller, LV_ALIGN_CENTER, 0, 6);
 
     // Main style: dark background, dimmed text
-    lv_obj_set_style_bg_color   (s_roller, lv_color_hex(CLR_SURFACE), LV_PART_MAIN);
+    lv_obj_set_style_bg_color   (s_roller, lv_color_hex(c_surface),  LV_PART_MAIN);
     lv_obj_set_style_bg_opa     (s_roller, LV_OPA_COVER,              LV_PART_MAIN);
     lv_obj_set_style_border_width(s_roller, 0,                         LV_PART_MAIN);
-    lv_obj_set_style_text_color (s_roller, lv_color_hex(CLR_TEXT_DIM), LV_PART_MAIN);
+    lv_obj_set_style_text_color (s_roller, lv_color_hex(c_text_dim),  LV_PART_MAIN);
     lv_obj_set_style_text_font  (s_roller, &lv_font_montserrat_16,     LV_PART_MAIN);
     lv_obj_set_style_pad_left   (s_roller, 10,                         LV_PART_MAIN);
     lv_obj_set_style_pad_right  (s_roller, 10,                         LV_PART_MAIN);
 
     // Selected entry: accent color, larger font, subtle border
-    lv_obj_set_style_bg_color    (s_roller, lv_color_hex(CLR_SEL_BG),  LV_PART_SELECTED);
+    lv_obj_set_style_bg_color    (s_roller, lv_color_hex(c_sel_bg),   LV_PART_SELECTED);
     lv_obj_set_style_bg_opa      (s_roller, LV_OPA_COVER,              LV_PART_SELECTED);
-    lv_obj_set_style_text_color  (s_roller, lv_color_hex(CLR_TEXT),    LV_PART_SELECTED);
+    lv_obj_set_style_text_color  (s_roller, lv_color_hex(c_text),     LV_PART_SELECTED);
     lv_obj_set_style_text_font   (s_roller, &lv_font_montserrat_20,    LV_PART_SELECTED);
-    lv_obj_set_style_border_color(s_roller, lv_color_hex(CLR_ACCENT),  LV_PART_SELECTED);
+    lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent),   LV_PART_SELECTED);
     lv_obj_set_style_border_width(s_roller, 1,                         LV_PART_SELECTED);
     lv_obj_set_style_border_opa  (s_roller, LV_OPA_50,                 LV_PART_SELECTED);
 }
@@ -57,10 +69,11 @@ static void create_roller(lv_obj_t* parent) {
 // ── Public API ───────────────────────────────────────────────────────────────
 
 void ui_init() {
+    load_colors();
     lv_obj_t* scr = lv_scr_act();
 
     // Screen background
-    lv_obj_set_style_bg_color(scr, lv_color_hex(CLR_BG),    0);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(c_bg),    0);
     lv_obj_set_style_bg_opa  (scr, LV_OPA_COVER,            0);
 
     create_roller(scr);
@@ -82,6 +95,19 @@ int ui_get_selected() {
 void ui_set_selected(int index) {
     if (!s_roller || s_count == 0) return;
     lv_roller_set_selected(s_roller, (uint16_t)index, LV_ANIM_ON);
+}
+
+void ui_apply_colors() {
+    load_colors();
+    lv_obj_t* scr = lv_scr_act();
+    lv_obj_set_style_bg_color(scr, lv_color_hex(c_bg), 0);
+    if (!s_roller) return;
+    lv_obj_set_style_bg_color   (s_roller, lv_color_hex(c_surface),  LV_PART_MAIN);
+    lv_obj_set_style_text_color (s_roller, lv_color_hex(c_text_dim), LV_PART_MAIN);
+    lv_obj_set_style_bg_color   (s_roller, lv_color_hex(c_sel_bg),   LV_PART_SELECTED);
+    lv_obj_set_style_text_color (s_roller, lv_color_hex(c_text),     LV_PART_SELECTED);
+    lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent),  LV_PART_SELECTED);
+    lv_timer_handler();
 }
 
 void ui_reload() {
