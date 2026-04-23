@@ -20,12 +20,13 @@ static const char HTML_PAGE[] = R"rawliteral(<!DOCTYPE html>
 <meta name="viewport" content="width=device-width,initial-scale=1">
 <title>m5Macro</title>
 <style>
+:root{--clr-bg:#0a0a0a;--clr-surface:#111111;--clr-border:#222222;--clr-text:#e0e0e0;--clr-dim:#888888;--clr-accent:#888888}
 *{box-sizing:border-box;margin:0;padding:0}
-body{background:#0a0a0a;color:#e0e0e0;font-family:'Courier New',monospace;font-size:13px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
-header{background:#111111;padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid #222222;flex-shrink:0}
+body{background:var(--clr-bg);color:var(--clr-text);font-family:'Courier New',monospace;font-size:13px;display:flex;flex-direction:column;height:100vh;overflow:hidden}
+header{background:var(--clr-surface);padding:10px 14px;display:flex;align-items:center;gap:10px;border-bottom:1px solid var(--clr-border);flex-shrink:0}
 h1{color:#ffffff;font-size:16px;letter-spacing:2px}
 .sub{color:#444444;font-size:11px}
-.conn{width:7px;height:7px;border-radius:50%;background:#aaaaaa;flex-shrink:0;transition:background .3s}
+.conn{width:7px;height:7px;border-radius:50%;background:var(--clr-dim);flex-shrink:0;transition:background .3s}
 .conn.off{background:#444444}
 .ip-badge{color:#cccccc;font-size:11px;margin-left:auto;background:#1a1a1a;padding:3px 8px;border-radius:3px;border:1px solid #333333}
 .hbg{display:none;flex-direction:column;gap:4px;background:none;border:1px solid #222222;border-radius:4px;padding:6px 7px;cursor:pointer;flex-shrink:0}
@@ -36,14 +37,14 @@ h1{color:#ffffff;font-size:16px;letter-spacing:2px}
 /* Settings Modal */
 #settings-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center}
 #settings-modal.show{display:flex}
-.modal-box{background:#111111;border:1px solid #333333;border-radius:6px;width:320px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
+.modal-box{background:var(--clr-surface);border:1px solid #333333;border-radius:6px;width:320px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
 .modal-hdr{display:flex;align-items:center;justify-content:space-between}
 .modal-ttl{color:#ffffff;font-size:14px;letter-spacing:1px}
 .modal-x{background:none;border:none;color:#666666;font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
 .modal-x:hover{color:#e0e0e0}
 .modal-fg{display:flex;flex-direction:column;gap:5px}
 .modal-lbl{color:#666666;font-size:10px;text-transform:uppercase;letter-spacing:1px}
-.modal-inp{background:#0a0a0a;border:1px solid #333333;color:#e0e0e0;padding:9px 10px;border-radius:4px;width:100%;font-family:inherit;font-size:13px}
+.modal-inp{background:var(--clr-bg);border:1px solid #333333;color:var(--clr-text);padding:9px 10px;border-radius:4px;width:100%;font-family:inherit;font-size:13px}
 .modal-inp:focus{outline:none;border-color:#888888}
 .modal-sep{border:none;border-top:1px solid #222222}
 .modal-row{display:flex;gap:8px}
@@ -60,7 +61,7 @@ h1{color:#ffffff;font-size:16px;letter-spacing:2px}
 /* Layout */
 .layout{display:flex;flex:1;overflow:hidden}
 /* Sidebar */
-.sidebar{width:190px;background:#0d0d0d;border-right:1px solid #222222;display:flex;flex-direction:column;flex-shrink:0;transition:transform .22s ease}
+.sidebar{width:190px;background:#0d0d0d;border-right:1px solid var(--clr-border);display:flex;flex-direction:column;flex-shrink:0;transition:transform .22s ease}
 .sb-hdr{display:flex;align-items:center;gap:6px;padding:11px 10px 5px;border-bottom:1px solid #1a1a1a}
 .sb-ttl{color:#444444;font-size:10px;text-transform:uppercase;letter-spacing:1.5px;flex:1}
 .mc{background:#1a1a1a;color:#555555;font-size:10px;padding:1px 6px;border-radius:10px}
@@ -69,7 +70,7 @@ h1{color:#ffffff;font-size:16px;letter-spacing:2px}
 .macro-list{flex:1;overflow-y:auto;padding:4px 4px 0;-webkit-overflow-scrolling:touch}
 .mi{padding:10px;border-radius:4px;cursor:pointer;color:#666666;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2px solid transparent;display:flex;align-items:center;gap:5px;min-height:44px;transition:background .1s,color .1s}
 .mi:hover{background:#151515;color:#aaaaaa}
-.mi.active{background:#1a1a1a;color:#e0e0e0;border-left-color:#888888}
+.mi.active{background:#1a1a1a;color:var(--clr-text);border-left-color:var(--clr-accent)}
 .mi-num{color:#333333;font-size:10px;min-width:14px;text-align:right;flex-shrink:0}
 .mi-name{overflow:hidden;text-overflow:ellipsis;flex:1}
 .ud{color:#aaaaaa;font-size:8px;flex-shrink:0;opacity:0}
@@ -85,7 +86,7 @@ h1{color:#ffffff;font-size:16px;letter-spacing:2px}
 .fh{display:flex;align-items:center;justify-content:space-between}
 label{color:#555555;font-size:10px;text-transform:uppercase;letter-spacing:1px}
 .sc{color:#333333;font-size:10px}
-input[type=text]{background:#0d0d0d;border:1px solid #222222;color:#e0e0e0;padding:9px 10px;border-radius:4px;width:100%;font-family:inherit;font-size:16px;transition:border-color .15s;-webkit-appearance:none}
+input[type=text]{background:#0d0d0d;border:1px solid var(--clr-border);color:var(--clr-text);padding:9px 10px;border-radius:4px;width:100%;font-family:inherit;font-size:16px;transition:border-color .15s;-webkit-appearance:none}
 input[type=text]:focus{outline:none;border-color:#888888}
 /* Step rows */
 .step-list{display:flex;flex-direction:column;gap:5px}
@@ -134,6 +135,10 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
 .es-row{display:flex;align-items:center;gap:8px}
 .es-rng{flex:1;accent-color:#888;cursor:pointer}
 .es-val{color:#666;font-size:11px;min-width:26px;text-align:right;flex-shrink:0}
+.clr-grid{display:flex;flex-direction:column;gap:6px}
+.clr-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.clr-lbl{color:#666666;font-size:11px;flex:1}
+.clr-inp{width:44px;height:28px;padding:2px 3px;background:var(--clr-bg);border:1px solid #333333;border-radius:4px;cursor:pointer}
 @media(min-width:600px){
   .hbg{display:none}
   .sb-x{display:none!important}
@@ -210,6 +215,32 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
       </div>
     </div>
     <button class="btn-modal-save" onclick="saveEnergy()" style="width:100%">&#9889; Save energy settings</button>
+    <hr class="modal-sep">
+    <div class="modal-fg">
+      <label class="modal-lbl">&#9632; Display Colors (Firmware)</label>
+    </div>
+    <div class="clr-grid">
+      <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="fw-bg" value="#000000"></div>
+      <div class="clr-row"><span class="clr-lbl">Roller surface</span><input type="color" class="clr-inp" id="fw-surface" value="#000000"></div>
+      <div class="clr-row"><span class="clr-lbl">Accent (border)</span><input type="color" class="clr-inp" id="fw-accent" value="#808080"></div>
+      <div class="clr-row"><span class="clr-lbl">Selected background</span><input type="color" class="clr-inp" id="fw-sel-bg" value="#1a1a1a"></div>
+      <div class="clr-row"><span class="clr-lbl">Active text</span><input type="color" class="clr-inp" id="fw-text" value="#ffffff"></div>
+      <div class="clr-row"><span class="clr-lbl">Inactive text</span><input type="color" class="clr-inp" id="fw-text-dim" value="#888888"></div>
+    </div>
+    <button class="btn-modal-save" onclick="saveFwColors()" style="width:100%">&#9632; Save display colors</button>
+    <hr class="modal-sep">
+    <div class="modal-fg">
+      <label class="modal-lbl">&#9632; Web UI Colors</label>
+    </div>
+    <div class="clr-grid">
+      <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="web-bg" value="#0a0a0a"></div>
+      <div class="clr-row"><span class="clr-lbl">Surface (panels)</span><input type="color" class="clr-inp" id="web-surface" value="#111111"></div>
+      <div class="clr-row"><span class="clr-lbl">Border</span><input type="color" class="clr-inp" id="web-border" value="#222222"></div>
+      <div class="clr-row"><span class="clr-lbl">Text</span><input type="color" class="clr-inp" id="web-text" value="#e0e0e0"></div>
+      <div class="clr-row"><span class="clr-lbl">Dim text</span><input type="color" class="clr-inp" id="web-dim" value="#888888"></div>
+      <div class="clr-row"><span class="clr-lbl">Accent</span><input type="color" class="clr-inp" id="web-accent" value="#888888"></div>
+    </div>
+    <button class="btn-modal-save" onclick="saveWebColors()" style="width:100%">&#9632; Save web colors</button>
     <div class="modal-st" id="modal-st"></div>
   </div>
 </div>
@@ -251,9 +282,11 @@ function closeSB(){document.getElementById('sb').classList.remove('open');docume
 function openSettings(){
   Promise.all([
     fetch('/api/settings').then(function(r){return r.json();}).catch(function(){return{};}),
-    fetch('/api/energy').then(function(r){return r.json();}).catch(function(){return{};})
+    fetch('/api/energy').then(function(r){return r.json();}).catch(function(){return{};}),
+    fetch('/api/colors').then(function(r){return r.json();}).catch(function(){return{};}),
+    fetch('/api/webcolors').then(function(r){return r.json();}).catch(function(){return{};})
   ]).then(function(res){
-    var j=res[0],e=res[1];
+    var j=res[0],e=res[1],fc=res[2],wc=res[3];
     document.getElementById('cfg-ssid').value=j.ssid||'';
     document.getElementById('cfg-pass').value='';
     document.getElementById('modal-st').textContent='';
@@ -261,6 +294,22 @@ function openSettings(){
     if(e.timeout_s!==undefined)document.getElementById('cfg-es-to').value=e.timeout_s;
     if(e.dim_br!==undefined){document.getElementById('cfg-es-db').value=e.dim_br;document.getElementById('cfg-es-dbv').textContent=e.dim_br;}
     if(e.active_br!==undefined){document.getElementById('cfg-es-ab').value=e.active_br;document.getElementById('cfg-es-abv').textContent=e.active_br;}
+    if(fc.bg!==undefined){
+      document.getElementById('fw-bg').value='#'+fc.bg;
+      document.getElementById('fw-surface').value='#'+fc.surface;
+      document.getElementById('fw-accent').value='#'+fc.accent;
+      document.getElementById('fw-sel-bg').value='#'+fc.sel_bg;
+      document.getElementById('fw-text').value='#'+fc.text;
+      document.getElementById('fw-text-dim').value='#'+fc.text_dim;
+    }
+    if(wc.bg!==undefined){
+      document.getElementById('web-bg').value='#'+wc.bg;
+      document.getElementById('web-surface').value='#'+wc.surface;
+      document.getElementById('web-border').value='#'+wc.border;
+      document.getElementById('web-text').value='#'+wc.text;
+      document.getElementById('web-dim').value='#'+wc.dim;
+      document.getElementById('web-accent').value='#'+wc.accent;
+    }
     document.getElementById('settings-modal').classList.add('show');
   });
 }
@@ -384,12 +433,59 @@ function mv(i,d){var j=i+d;if(j<0||j>=steps.length)return;var t=steps[i];steps[i
 function chType(i,t){var s=steps[i];steps[i]=t==='key'?{type:'key',key:s.key||'ENTER'}:t==='combo'?{type:'combo',mods:['CTRL'],key:s.key||'C'}:t==='text'?{type:'text',text:s.text||''}:{type:'delay',ms:s.ms||500};markDirty();renderSteps();}
 function togMod(i,mod){var s=steps[i];if(!s.mods)s.mods=[];var x=s.mods.indexOf(mod);if(x>=0)s.mods.splice(x,1);else s.mods.push(mod);markDirty();renderSteps();}
 
+function applyWebColors(c){
+  var r=document.documentElement.style;
+  if(c.bg)r.setProperty('--clr-bg','#'+c.bg);
+  if(c.surface)r.setProperty('--clr-surface','#'+c.surface);
+  if(c.border)r.setProperty('--clr-border','#'+c.border);
+  if(c.text)r.setProperty('--clr-text','#'+c.text);
+  if(c.dim)r.setProperty('--clr-dim','#'+c.dim);
+  if(c.accent)r.setProperty('--clr-accent','#'+c.accent);
+}
+
+async function saveFwColors(){
+  mst('Saving...');
+  var body=new URLSearchParams({
+    bg:document.getElementById('fw-bg').value.replace('#',''),
+    surface:document.getElementById('fw-surface').value.replace('#',''),
+    accent:document.getElementById('fw-accent').value.replace('#',''),
+    sel_bg:document.getElementById('fw-sel-bg').value.replace('#',''),
+    text:document.getElementById('fw-text').value.replace('#',''),
+    text_dim:document.getElementById('fw-text-dim').value.replace('#','')
+  });
+  try{
+    var r=await fetch('/api/colors',{method:'POST',body:body});
+    var j=await r.json();
+    if(j.ok)mst('Display colors saved!');
+    else mst('Error: '+(j.err||'?'));
+  }catch(e){mst('Connection error');}
+}
+
+async function saveWebColors(){
+  mst('Saving...');
+  var vals={
+    bg:document.getElementById('web-bg').value.replace('#',''),
+    surface:document.getElementById('web-surface').value.replace('#',''),
+    border:document.getElementById('web-border').value.replace('#',''),
+    text:document.getElementById('web-text').value.replace('#',''),
+    dim:document.getElementById('web-dim').value.replace('#',''),
+    accent:document.getElementById('web-accent').value.replace('#','')
+  };
+  try{
+    var r=await fetch('/api/webcolors',{method:'POST',body:new URLSearchParams(vals)});
+    var j=await r.json();
+    if(j.ok){applyWebColors(vals);mst('Web colors saved!');}
+    else mst('Error: '+(j.err||'?'));
+  }catch(e){mst('Connection error');}
+}
+
 async function load(){
   try{
     var r=await fetch('/api/macros');macros=await r.json();setOnline(true);
     document.getElementById('mc').textContent=macros.length;renderList();
     var ip=r.headers.get('X-Device-IP');if(ip)document.getElementById('ip-badge').textContent=ip;
   }catch(e){setOnline(false);st('Connection error','#cc4444');}
+  fetch('/api/webcolors').then(function(r){return r.json();}).then(applyWebColors).catch(function(){});
 }
 
 function renderList(){
@@ -654,6 +750,81 @@ static void handle_api_energy_post() {
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
+static void handle_api_colors_get() {
+    Preferences prefs;
+    prefs.begin("colors", true);
+    uint32_t bg       = prefs.getUInt("bg",       0x000000);
+    uint32_t surface  = prefs.getUInt("surface",  0x000000);
+    uint32_t accent   = prefs.getUInt("accent",   0x808080);
+    uint32_t sel_bg   = prefs.getUInt("sel_bg",   0x1A1A1A);
+    uint32_t text     = prefs.getUInt("text",     0xFFFFFF);
+    uint32_t text_dim = prefs.getUInt("text_dim", 0x888888);
+    prefs.end();
+    char buf[160];
+    snprintf(buf, sizeof(buf),
+        "{\"bg\":\"%06X\",\"surface\":\"%06X\",\"accent\":\"%06X\","
+        "\"sel_bg\":\"%06X\",\"text\":\"%06X\",\"text_dim\":\"%06X\"}",
+        (unsigned)bg, (unsigned)surface, (unsigned)accent,
+        (unsigned)sel_bg, (unsigned)text, (unsigned)text_dim);
+    server.send(200, "application/json", buf);
+}
+
+static void handle_api_colors_post() {
+    auto parseHex = [](const String& s) -> uint32_t {
+        String v = s; v.trim();
+        if (v.startsWith("#")) v = v.substring(1);
+        return (uint32_t)strtoul(v.c_str(), nullptr, 16);
+    };
+    Preferences prefs;
+    prefs.begin("colors", false);
+    if (server.hasArg("bg"))       prefs.putUInt("bg",       parseHex(server.arg("bg")));
+    if (server.hasArg("surface"))  prefs.putUInt("surface",  parseHex(server.arg("surface")));
+    if (server.hasArg("accent"))   prefs.putUInt("accent",   parseHex(server.arg("accent")));
+    if (server.hasArg("sel_bg"))   prefs.putUInt("sel_bg",   parseHex(server.arg("sel_bg")));
+    if (server.hasArg("text"))     prefs.putUInt("text",     parseHex(server.arg("text")));
+    if (server.hasArg("text_dim")) prefs.putUInt("text_dim", parseHex(server.arg("text_dim")));
+    prefs.end();
+    ui_apply_colors();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handle_api_webcolors_get() {
+    Preferences prefs;
+    prefs.begin("webclr", true);
+    uint32_t bg      = prefs.getUInt("bg",      0x0A0A0A);
+    uint32_t surface = prefs.getUInt("surface",  0x111111);
+    uint32_t border  = prefs.getUInt("border",   0x222222);
+    uint32_t text    = prefs.getUInt("text",     0xE0E0E0);
+    uint32_t dim     = prefs.getUInt("dim",      0x888888);
+    uint32_t accent  = prefs.getUInt("accent",   0x888888);
+    prefs.end();
+    char buf[140];
+    snprintf(buf, sizeof(buf),
+        "{\"bg\":\"%06X\",\"surface\":\"%06X\",\"border\":\"%06X\","
+        "\"text\":\"%06X\",\"dim\":\"%06X\",\"accent\":\"%06X\"}",
+        (unsigned)bg, (unsigned)surface, (unsigned)border,
+        (unsigned)text, (unsigned)dim, (unsigned)accent);
+    server.send(200, "application/json", buf);
+}
+
+static void handle_api_webcolors_post() {
+    auto parseHex = [](const String& s) -> uint32_t {
+        String v = s; v.trim();
+        if (v.startsWith("#")) v = v.substring(1);
+        return (uint32_t)strtoul(v.c_str(), nullptr, 16);
+    };
+    Preferences prefs;
+    prefs.begin("webclr", false);
+    if (server.hasArg("bg"))      prefs.putUInt("bg",      parseHex(server.arg("bg")));
+    if (server.hasArg("surface")) prefs.putUInt("surface", parseHex(server.arg("surface")));
+    if (server.hasArg("border"))  prefs.putUInt("border",  parseHex(server.arg("border")));
+    if (server.hasArg("text"))    prefs.putUInt("text",    parseHex(server.arg("text")));
+    if (server.hasArg("dim"))     prefs.putUInt("dim",     parseHex(server.arg("dim")));
+    if (server.hasArg("accent"))  prefs.putUInt("accent",  parseHex(server.arg("accent")));
+    prefs.end();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
 static void handle_not_found() {
     server.send(404, "text/plain", "Not found");
 }
@@ -682,6 +853,10 @@ void web_server_init() {
     server.on("/api/restart-bootloader", HTTP_POST, handle_api_restart_bootloader);
     server.on("/api/energy",             HTTP_GET,  handle_api_energy_get);
     server.on("/api/energy",             HTTP_POST, handle_api_energy_post);
+    server.on("/api/colors",             HTTP_GET,  handle_api_colors_get);
+    server.on("/api/colors",             HTTP_POST, handle_api_colors_post);
+    server.on("/api/webcolors",          HTTP_GET,  handle_api_webcolors_get);
+    server.on("/api/webcolors",          HTTP_POST, handle_api_webcolors_post);
     server.onNotFound(handle_not_found);
 
     server.begin();
