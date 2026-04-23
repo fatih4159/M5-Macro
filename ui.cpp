@@ -31,6 +31,8 @@ static void create_roller(lv_obj_t* parent) {
 
     s_roller = lv_roller_create(parent);
     lv_roller_set_options(s_roller, opts.c_str(), LV_ROLLER_MODE_INFINITE);
+    lv_obj_set_style_radius(s_roller, 10, LV_PART_SELECTED);
+
     lv_roller_set_visible_row_count(s_roller, 7);
     lv_obj_set_width(s_roller, 230);
     lv_obj_align(s_roller, LV_ALIGN_CENTER, 0, 6);
