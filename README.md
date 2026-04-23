@@ -140,7 +140,6 @@ Defined in `config.h`.
 
 ## ⚠️ Limitations
 
--   Max 16 macros\
 -   Blocking execution\
 -   No HTTPS
 
