@@ -1,12 +1,12 @@
 #include "macro_parser.h"
 
-// ── Keycode-Lookup-Tabelle ──────────────────────────────────────────────────
-// Ordnet Schluesselwort-Strings den USB-HID-Keycodes zu.
-// Quelle: USBHIDKeyboard.h (ESP32 Arduino Core)
+// ── Keycode lookup table ─────────────────────────────────────────────────────
+// Maps keyword strings to USB HID keycodes.
+// Source: USBHIDKeyboard.h (ESP32 Arduino Core)
 
 struct KeyEntry { const char* name; uint8_t code; };
 
-// Modifier-Taste oder normaler Key?
+// Modifier key or regular key?
 struct ModEntry { const char* name; uint8_t code; };
 
 static const ModEntry kModifiers[] = {
@@ -25,7 +25,7 @@ static const ModEntry kModifiers[] = {
 };
 
 static const KeyEntry kKeys[] = {
-    // Steuerung
+    // Control
     { "ENTER",     0xB0 },   // KEY_RETURN
     { "RETURN",    0xB0 },
     { "ESC",       0xB1 },   // KEY_ESC
@@ -47,7 +47,7 @@ static const KeyEntry kKeys[] = {
     { "PAGEDOWN",  0xD6 },
     { "INSERT",    0xD1 },
     { "DELETE",    0xD4 },
-    // Funktionstasten
+    // Function keys
     { "F1",        0xC2 },
     { "F2",        0xC3 },
     { "F3",        0xC4 },
@@ -60,7 +60,7 @@ static const KeyEntry kKeys[] = {
     { "F10",       0xCB },
     { "F11",       0xCC },
     { "F12",       0xCD },
-    // Sondertasten
+    // Special keys
     { "PRINTSCREEN", 0xCE },
     { "SCROLLLOCK",  0xCF },
     { "PAUSE",       0xD0 },
@@ -69,8 +69,8 @@ static const KeyEntry kKeys[] = {
     { "TILDE",       0x60 },
 };
 
-// ── Hilfsfunktion: Token → Modifier? ───────────────────────────────────────
-// Gibt 0 zurueck wenn kein Modifier gefunden
+// ── Helper: token → modifier? ───────────────────────────────────────────────
+// Returns 0 if no modifier found
 static uint8_t lookupModifier(const String& tok) {
     String upper = tok;
     upper.toUpperCase();
@@ -80,32 +80,32 @@ static uint8_t lookupModifier(const String& tok) {
     return 0;
 }
 
-// ── Hilfsfunktion: Token → Keycode ─────────────────────────────────────────
+// ── Helper: token → keycode ─────────────────────────────────────────────────
 static uint8_t lookupKey(const String& tok) {
     String upper = tok;
     upper.toUpperCase();
     for (auto& k : kKeys) {
         if (upper == k.name) return k.code;
     }
-    // Einzelnes ASCII-Zeichen (a-z, 0-9, Satzzeichen)
+    // Single ASCII character (a-z, 0-9, punctuation)
     if (tok.length() == 1) {
         char c = tok.charAt(0);
-        // Kleinbuchstaben fuer USB HID
+        // Lowercase for USB HID
         if (c >= 'A' && c <= 'Z') c += 32;
         return (uint8_t)c;
     }
     return 0;
 }
 
-// ── Hauptfunktion: Zeile parsen ─────────────────────────────────────────────
+// ── Main function: parse line ────────────────────────────────────────────────
 MacroStep parseLine(const String& line) {
     MacroStep step = {};
-    step.type = STEP_DELAY; // Default: leerer Schritt (delay_ms=0 → ignoriert)
+    step.type = STEP_DELAY; // Default: empty step (delay_ms=0 → ignored)
 
     String s = line;
     s.trim();
 
-    // Leere Zeile oder Kommentar ignorieren
+    // Ignore empty line or comment
     if (s.length() == 0 || s.charAt(0) == '#') return step;
 
     // ── TEXT: ──────────────────────────────────────────────────────────────
@@ -123,8 +123,8 @@ MacroStep parseLine(const String& line) {
         return step;
     }
 
-    // ── Tasten-Kombination (TOKEN+TOKEN+...) ───────────────────────────────
-    // Tokens auf '+' aufteilen
+    // ── Key combination (TOKEN+TOKEN+...) ──────────────────────────────────
+    // Split tokens on '+'
     String tokens[8];
     int    n_tok = 0;
     int    start = 0;
@@ -135,7 +135,7 @@ MacroStep parseLine(const String& line) {
         }
     }
 
-    // Letztes Token ist die Haupt-Taste, alle davor sind Modifier
+    // Last token is the main key, all preceding tokens are modifiers
     step.mod_count = 0;
     for (int i = 0; i < n_tok - 1 && step.mod_count < STEP_MOD_MAX; i++) {
         uint8_t mod = lookupModifier(tokens[i]);

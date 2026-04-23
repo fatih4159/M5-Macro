@@ -9,12 +9,12 @@
 #include "esp_system.h"
 #include "soc/rtc_cntl_reg.h"
 
-// ── HTTP-Server-Instanz ───────────────────────────────────────────────────────
+// ── HTTP server instance ──────────────────────────────────────────────────────
 static WebServer server(WEB_SERVER_PORT);
 
-// ── Eingebettete HTML-Seite ───────────────────────────────────────────────────
+// ── Embedded HTML page ────────────────────────────────────────────────────────
 static const char HTML_PAGE[] = R"rawliteral(<!DOCTYPE html>
-<html lang="de">
+<html lang="en">
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
@@ -167,74 +167,74 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
 <div id="settings-modal">
   <div class="modal-box">
     <div class="modal-hdr">
-      <span class="modal-ttl">&#9881; Einstellungen</span>
+      <span class="modal-ttl">&#9881; Settings</span>
       <button class="modal-x" onclick="closeSettings()">&#10005;</button>
     </div>
     <div class="modal-fg">
-      <label class="modal-lbl">WLAN-SSID</label>
+      <label class="modal-lbl">WiFi SSID</label>
       <input type="text" class="modal-inp" id="cfg-ssid" maxlength="32" placeholder="m5Macro" autocomplete="off">
     </div>
     <div class="modal-fg">
-      <label class="modal-lbl">WLAN-Passwort (min. 8 Zeichen)</label>
-      <input type="password" class="modal-inp" id="cfg-pass" maxlength="63" placeholder="(unveraendert lassen)" autocomplete="new-password">
+      <label class="modal-lbl">WiFi Password (min. 8 characters)</label>
+      <input type="password" class="modal-inp" id="cfg-pass" maxlength="63" placeholder="(leave unchanged)" autocomplete="new-password">
     </div>
     <hr class="modal-sep">
-    <button class="btn-modal-save" onclick="saveSettings()" style="width:100%">&#10003; Speichern &amp; Neustart</button>
+    <button class="btn-modal-save" onclick="saveSettings()" style="width:100%">&#10003; Save &amp; Restart</button>
     <div class="modal-row">
-      <button class="btn-restart" onclick="doRestart()">&#8635; Neustart</button>
+      <button class="btn-restart" onclick="doRestart()">&#8635; Restart</button>
       <button class="btn-boot" onclick="doBootloader()">&#9660; Bootloader</button>
     </div>
     <hr class="modal-sep">
     <div class="modal-fg">
       <div style="display:flex;align-items:center;justify-content:space-between">
-        <label class="modal-lbl" style="margin:0">&#9889; Energiesparmodus</label>
+        <label class="modal-lbl" style="margin:0">&#9889; Energy Saving</label>
         <label class="es-sw"><input type="checkbox" id="cfg-es-en"><span class="es-sl"></span></label>
       </div>
     </div>
     <div class="modal-fg">
-      <label class="modal-lbl">Inaktivitaet bis Dimmen (Sekunden)</label>
+      <label class="modal-lbl">Inactivity until dim (seconds)</label>
       <input type="number" class="modal-inp" id="cfg-es-to" min="5" max="3600" value="30">
     </div>
     <div class="modal-fg">
-      <label class="modal-lbl">Dim-Helligkeit (0–255)</label>
+      <label class="modal-lbl">Dim brightness (0–255)</label>
       <div class="es-row">
         <input type="range" class="es-rng" id="cfg-es-db" min="0" max="255" value="10" oninput="document.getElementById('cfg-es-dbv').textContent=this.value">
         <span class="es-val" id="cfg-es-dbv">10</span>
       </div>
     </div>
     <div class="modal-fg">
-      <label class="modal-lbl">Normale Helligkeit (10–255)</label>
+      <label class="modal-lbl">Normal brightness (10–255)</label>
       <div class="es-row">
         <input type="range" class="es-rng" id="cfg-es-ab" min="10" max="255" value="128" oninput="document.getElementById('cfg-es-abv').textContent=this.value">
         <span class="es-val" id="cfg-es-abv">128</span>
       </div>
     </div>
-    <button class="btn-modal-save" onclick="saveEnergy()" style="width:100%">&#9889; Energiesparmodus speichern</button>
+    <button class="btn-modal-save" onclick="saveEnergy()" style="width:100%">&#9889; Save energy settings</button>
     <div class="modal-st" id="modal-st"></div>
   </div>
 </div>
 <header>
-  <button class="hbg" onclick="openSB()" aria-label="Menue"><span></span><span></span><span></span></button>
+  <button class="hbg" onclick="openSB()" aria-label="Menu"><span></span><span></span><span></span></button>
   <div class="conn" id="conn"></div>
   <h1>m5Macro</h1><span class="sub">Editor</span>
   <span class="ip-badge" id="ip-badge">192.168.4.1</span>
-  <button class="settings-btn" onclick="openSettings()" title="Einstellungen">&#9881;</button>
+  <button class="settings-btn" onclick="openSettings()" title="Settings">&#9881;</button>
 </header>
 <div class="layout">
   <div class="sidebar" id="sb">
     <div class="sb-hdr">
-      <span class="sb-ttl">Makros</span>
+      <span class="sb-ttl">Macros</span>
       <span class="mc" id="mc">0</span>
       <button class="sb-x" onclick="closeSB()">&#10005;</button>
     </div>
     <div class="macro-list" id="ml"></div>
     <div class="sb-foot">
-      <button class="btn-new" onclick="newMacro()" style="width:100%;text-align:center">+ Neu</button>
+      <button class="btn-new" onclick="newMacro()" style="width:100%;text-align:center">+ New</button>
     </div>
   </div>
   <div class="main">
     <div class="editor" id="editor">
-      <div class="ph"><div class="ph-i">&#9000;</div><div class="ph-t">Makro auswaehlen oder neu erstellen</div></div>
+      <div class="ph"><div class="ph-i">&#9000;</div><div class="ph-t">Select a macro or create a new one</div></div>
     </div>
   </div>
 </div>
@@ -271,30 +271,30 @@ function mst(msg){document.getElementById('modal-st').textContent=msg;}
 async function saveSettings(){
   var ssid=(document.getElementById('cfg-ssid').value||'').trim();
   var pass=document.getElementById('cfg-pass').value||'';
-  if(!ssid){mst('SSID darf nicht leer sein.');return;}
-  if(pass.length>0&&pass.length<8){mst('Passwort muss mind. 8 Zeichen haben.');return;}
-  mst('Speichern...');
+  if(!ssid){mst('SSID cannot be empty.');return;}
+  if(pass.length>0&&pass.length<8){mst('Password must be at least 8 characters.');return;}
+  mst('Saving...');
   var body=new URLSearchParams({ssid:ssid,pass:pass});
   try{
     var r=await fetch('/api/settings',{method:'POST',body:body});
     var j=await r.json();
-    if(j.ok){mst('Gespeichert! Geraet startet neu...');}
-    else mst('Fehler: '+(j.err||'?'));
-  }catch(e){mst('Verbindung getrennt – Neustart laeuft.');}
+    if(j.ok){mst('Saved! Device is restarting...');}
+    else mst('Error: '+(j.err||'?'));
+  }catch(e){mst('Connection lost – restarting.');}
 }
 
 async function doRestart(){
-  if(!confirm('Geraet jetzt neu starten?'))return;
-  mst('Neustart...');
+  if(!confirm('Restart device now?'))return;
+  mst('Restarting...');
   try{await fetch('/api/restart',{method:'POST'});}catch(e){}
-  mst('Geraet startet neu...');
+  mst('Device is restarting...');
 }
 
 async function doBootloader(){
-  if(!confirm('In Bootloader-Modus wechseln?'))return;
+  if(!confirm('Switch to bootloader mode?'))return;
   mst('Bootloader...');
   try{await fetch('/api/restart-bootloader',{method:'POST'});}catch(e){}
-  mst('Geraet wechselt in Bootloader-Modus...');
+  mst('Device is switching to bootloader mode...');
 }
 
 function parseSteps(raw){
@@ -340,15 +340,15 @@ function renderRow(s,i){
   var n=steps.length;
   var r='<div class="sr">'
     +'<select class="si type-sel" onchange="chType('+i+',this.value)">'
-    +'<option value="key"'+(s.type==='key'?' selected':'')+'>Taste</option>'
-    +'<option value="combo"'+(s.type==='combo'?' selected':'')+'>Kombo</option>'
+    +'<option value="key"'+(s.type==='key'?' selected':'')+'>Key</option>'
+    +'<option value="combo"'+(s.type==='combo'?' selected':'')+'>Combo</option>'
     +'<option value="text"'+(s.type==='text'?' selected':'')+'>Text</option>'
-    +'<option value="delay"'+(s.type==='delay'?' selected':'')+'>Pause</option>'
+    +'<option value="delay"'+(s.type==='delay'?' selected':'')+'>Delay</option>'
     +'</select>'
     +'<div class="sr-acts">'
-    +'<button class="ob" onclick="mv('+i+',-1)"'+(i===0?' disabled':'')+' title="Hoch">&#9650;</button>'
-    +'<button class="ob" onclick="mv('+i+',1)"'+(i===n-1?' disabled':'')+' title="Runter">&#9660;</button>'
-    +'<button class="rm" onclick="rmStep('+i+')" title="Entfernen">&#10007;</button>'
+    +'<button class="ob" onclick="mv('+i+',-1)"'+(i===0?' disabled':'')+' title="Up">&#9650;</button>'
+    +'<button class="ob" onclick="mv('+i+',1)"'+(i===n-1?' disabled':'')+' title="Down">&#9660;</button>'
+    +'<button class="rm" onclick="rmStep('+i+')" title="Remove">&#10007;</button>'
     +'</div>'
     +'<div class="sr-cnt">';
   if(s.type==='key'){
@@ -358,7 +358,7 @@ function renderRow(s,i){
     MODS.forEach(function(m){r+='<button class="mb'+(s.mods&&s.mods.indexOf(m)>=0?' on':'')+'" onclick="togMod('+i+',\''+m+'\')">'+m+'</button>';});
     r+='</div><span class="plus-lbl">+</span><select class="si" style="min-width:80px" onchange="steps['+i+'].key=this.value;markDirty()">'+kOpts(s.key||'C')+'</select>';
   }else if(s.type==='text'){
-    r+='<input type="text" class="text-in" placeholder="Text eingeben..." value="'+esc(s.text||'')+'" oninput="steps['+i+'].text=this.value;markDirty()" autocomplete="off">';
+    r+='<input type="text" class="text-in" placeholder="Enter text..." value="'+esc(s.text||'')+'" oninput="steps['+i+'].text=this.value;markDirty()" autocomplete="off">';
   }else{
     r+='<input type="number" class="delay-in" min="1" max="9999" value="'+(s.ms||100)+'" oninput="steps['+i+'].ms=parseInt(this.value)||1;markDirty()"><span class="ms-lbl">ms</span>';
   }
@@ -368,7 +368,7 @@ function renderRow(s,i){
 
 function renderSteps(){
   var sc=document.getElementById('sc');
-  if(sc)sc.textContent=steps.length+(steps.length===1?' Schritt':' Schritte');
+  if(sc)sc.textContent=steps.length+(steps.length===1?' step':' steps');
   var el=document.getElementById('step-list');
   if(el)el.innerHTML=steps.map(renderRow).join('');
 }
@@ -389,14 +389,14 @@ async function load(){
     var r=await fetch('/api/macros');macros=await r.json();setOnline(true);
     document.getElementById('mc').textContent=macros.length;renderList();
     var ip=r.headers.get('X-Device-IP');if(ip)document.getElementById('ip-badge').textContent=ip;
-  }catch(e){setOnline(false);st('Verbindungsfehler','#cc4444');}
+  }catch(e){setOnline(false);st('Connection error','#cc4444');}
 }
 
 function renderList(){
   document.getElementById('ml').innerHTML=macros.map(function(m,i){
     return'<div class="mi'+(i===cur?' active':'')+'" onclick="selMacro('+i+')" title="'+esc(m.name)+'">'
       +'<span class="mi-num">'+(i+1)+'</span>'
-      +'<span class="mi-name">'+esc(m.name||'(kein Name)')+'</span>'
+      +'<span class="mi-name">'+esc(m.name||'(no name)')+'</span>'
       +'<span class="ud'+(i===cur&&dirty?' show':'')+'">&#9679;</span></div>';
   }).join('');
 }
@@ -405,18 +405,18 @@ function markDirty(){if(!dirty){dirty=true;renderList();}}
 
 function edHTML(m,isNew){
   return'<div class="fg"><label>Name</label>'
-    +'<input type="text" id="m-name" maxlength="32" value="'+(isNew?'':esc(m.name))+'" placeholder="'+(isNew?'Makro-Name':'')+'" oninput="markDirty()" autocomplete="off"></div>'
-    +'<div class="fg"><div class="fh"><label>Schritte</label><span class="sc" id="sc"></span></div>'
+    +'<input type="text" id="m-name" maxlength="32" value="'+(isNew?'':esc(m.name))+'" placeholder="'+(isNew?'Macro name':'')+'" oninput="markDirty()" autocomplete="off"></div>'
+    +'<div class="fg"><div class="fh"><label>Steps</label><span class="sc" id="sc"></span></div>'
     +'<div class="step-list" id="step-list"></div>'
-    +'<button class="add-btn" onclick="addStep()">+ Schritt hinzufuegen</button></div>'
+    +'<button class="add-btn" onclick="addStep()">+ Add step</button></div>'
     +'<div class="toolbar">'
-    +(isNew?'<button class="btn-save" onclick="save()">+ Erstellen</button>'
-           :'<button class="btn-save" onclick="save()">&#10003; Speichern</button><button class="btn-del" onclick="del()">&#10007; Loeschen</button>')
+    +(isNew?'<button class="btn-save" onclick="save()">+ Create</button>'
+           :'<button class="btn-save" onclick="save()">&#10003; Save</button><button class="btn-del" onclick="del()">&#10007; Delete</button>')
     +'<span class="kh">Strg+S</span></div><div class="status" id="st"></div>';
 }
 
 function selMacro(i){
-  if(dirty&&cur>=0&&!confirm('Aenderungen verwerfen?'))return;
+  if(dirty&&cur>=0&&!confirm('Discard changes?'))return;
   dirty=false;cur=i;renderList();closeSB();
   steps=parseSteps(macros[i].steps);
   document.getElementById('editor').innerHTML=edHTML(macros[i],false);
@@ -424,7 +424,7 @@ function selMacro(i){
 }
 
 function newMacro(){
-  if(dirty&&cur>=0&&!confirm('Aenderungen verwerfen?'))return;
+  if(dirty&&cur>=0&&!confirm('Discard changes?'))return;
   dirty=false;cur=-1;steps=[];renderList();closeSB();
   document.getElementById('editor').innerHTML=edHTML(null,true);
   renderSteps();markDirty();
@@ -432,23 +432,23 @@ function newMacro(){
 
 async function save(){
   var name=(document.getElementById('m-name')||{}).value||'';
-  name=name.trim();if(!name){st('Name darf nicht leer sein.','#cc4444');return;}
+  name=name.trim();if(!name){st('Name cannot be empty.','#cc4444');return;}
   var body=new URLSearchParams({id:cur,name:name,steps:serializeSteps(steps)});
   try{
     var r=await fetch('/api/save',{method:'POST',body:body});var j=await r.json();
-    if(j.ok){dirty=false;st('Gespeichert!','#aaaaaa');var pv=cur;await load();cur=(pv===-1)?macros.length-1:pv;renderList();}
-    else st('Fehler: '+(j.err||'?'),'#cc4444');
-  }catch(e){st('Netzwerkfehler','#cc4444');}
+    if(j.ok){dirty=false;st('Saved!','#aaaaaa');var pv=cur;await load();cur=(pv===-1)?macros.length-1:pv;renderList();}
+    else st('Error: '+(j.err||'?'),'#cc4444');
+  }catch(e){st('Network error','#cc4444');}
 }
 
 async function del(){
   if(cur<0)return;
-  if(!confirm('Makro "'+macros[cur].name+'" loeschen?'))return;
+  if(!confirm('Delete macro "'+macros[cur].name+'"?'))return;
   try{
     var r=await fetch('/api/delete',{method:'POST',body:new URLSearchParams({id:cur})});var j=await r.json();
-    if(j.ok){dirty=false;cur=-1;steps=[];await load();document.getElementById('editor').innerHTML='<div class="ph"><div class="ph-i">&#10006;</div><div class="ph-t">Geloescht</div></div>';}
-    else st('Fehler: '+(j.err||'?'),'#cc4444');
-  }catch(e){st('Netzwerkfehler','#cc4444');}
+    if(j.ok){dirty=false;cur=-1;steps=[];await load();document.getElementById('editor').innerHTML='<div class="ph"><div class="ph-i">&#10006;</div><div class="ph-t">Deleted</div></div>';}
+    else st('Error: '+(j.err||'?'),'#cc4444');
+  }catch(e){st('Network error','#cc4444');}
 }
 
 function st(msg,color){
@@ -462,13 +462,13 @@ async function saveEnergy(){
   var to=parseInt(document.getElementById('cfg-es-to').value)||30;
   var db=parseInt(document.getElementById('cfg-es-db').value)||10;
   var ab=parseInt(document.getElementById('cfg-es-ab').value)||128;
-  mst('Speichern...');
+  mst('Saving...');
   try{
     var r=await fetch('/api/energy',{method:'POST',body:new URLSearchParams({enabled:en,timeout_s:to,dim_br:db,active_br:ab})});
     var j=await r.json();
-    if(j.ok)mst('Energiesparmodus gespeichert!');
-    else mst('Fehler: '+(j.err||'?'));
-  }catch(e){mst('Verbindungsfehler');}
+    if(j.ok)mst('Energy settings saved!');
+    else mst('Error: '+(j.err||'?'));
+  }catch(e){mst('Connection error');}
 }
 
 document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();}});
@@ -477,7 +477,7 @@ load();
 </body>
 </html>)rawliteral";
 
-// ── JSON-Hilfsfunktionen ──────────────────────────────────────────────────────
+// ── JSON helper functions ─────────────────────────────────────────────────────
 
 static String json_str(const String& s) {
     String out = "\"";
@@ -493,7 +493,7 @@ static String json_str(const String& s) {
     return out;
 }
 
-// ── HTTP-Handler ──────────────────────────────────────────────────────────────
+// ── HTTP handlers ─────────────────────────────────────────────────────────────
 
 static void handle_root() {
     server.send(200, "text/html; charset=utf-8", HTML_PAGE);
@@ -518,7 +518,7 @@ static void handle_api_macros() {
 
 static void handle_api_save() {
     if (!server.hasArg("name") || !server.hasArg("steps") || !server.hasArg("id")) {
-        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Fehlende Parameter\"}");
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Missing parameters\"}");
         return;
     }
     int  id    = server.arg("id").toInt();
@@ -527,13 +527,13 @@ static void handle_api_save() {
 
     name.trim();
     if (name.length() == 0) {
-        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Name leer\"}");
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Name empty\"}");
         return;
     }
 
     int result = macro_store_save(id, name, steps);
     if (result < 0) {
-        server.send(500, "application/json", "{\"ok\":false,\"err\":\"Speichern fehlgeschlagen\"}");
+        server.send(500, "application/json", "{\"ok\":false,\"err\":\"Save failed\"}");
         return;
     }
 
@@ -543,12 +543,12 @@ static void handle_api_save() {
 
 static void handle_api_delete() {
     if (!server.hasArg("id")) {
-        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Fehlende ID\"}");
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Missing ID\"}");
         return;
     }
     int id = server.arg("id").toInt();
     if (!macro_store_delete(id)) {
-        server.send(500, "application/json", "{\"ok\":false,\"err\":\"Loeschen fehlgeschlagen\"}");
+        server.send(500, "application/json", "{\"ok\":false,\"err\":\"Delete failed\"}");
         return;
     }
 
@@ -575,7 +575,7 @@ static void handle_api_settings_get() {
 
 static void handle_api_settings_post() {
     if (!server.hasArg("ssid")) {
-        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Fehlende Parameter\"}");
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Missing parameters\"}");
         return;
     }
     String ssid = server.arg("ssid");
@@ -583,11 +583,11 @@ static void handle_api_settings_post() {
     ssid.trim();
 
     if (ssid.length() == 0) {
-        server.send(400, "application/json", "{\"ok\":false,\"err\":\"SSID leer\"}");
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"SSID empty\"}");
         return;
     }
     if (pass.length() > 0 && pass.length() < 8) {
-        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Passwort zu kurz (min. 8 Zeichen)\"}");
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Password too short (min. 8 characters)\"}");
         return;
     }
 
@@ -613,7 +613,7 @@ static void handle_api_restart() {
 static void handle_api_restart_bootloader() {
     server.send(200, "application/json", "{\"ok\":true}");
     delay(500);
-    // Setzt das FORCE_DOWNLOAD_BOOT-Flag, damit der ROM-Bootloader beim naechsten Start aktiv wird
+    // Sets the FORCE_DOWNLOAD_BOOT flag so the ROM bootloader is active on next start
     REG_WRITE(RTC_CNTL_OPTION1_REG, RTC_CNTL_FORCE_DOWNLOAD_BOOT);
     esp_restart();
 }
@@ -650,7 +650,7 @@ static void handle_api_energy_post() {
         prefs.putUInt("active_br", (uint32_t)constrain(server.arg("active_br").toInt(), 10, 255));
     prefs.end();
 
-    energy_save_init();   // Neue Einstellungen sofort uebernehmen
+    energy_save_init();   // Apply new settings immediately
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -658,10 +658,10 @@ static void handle_not_found() {
     server.send(404, "text/plain", "Not found");
 }
 
-// ── Oeffentliche API ──────────────────────────────────────────────────────────
+// ── Public API ────────────────────────────────────────────────────────────────
 
 void web_server_init() {
-    // SSID und Passwort aus NVS lesen (Fallback: config.h-Konstanten)
+    // Read SSID and password from NVS (fallback: config.h constants)
     Preferences prefs;
     prefs.begin("wifi", true);
     String ssid = prefs.getString("ssid", WIFI_AP_SSID);

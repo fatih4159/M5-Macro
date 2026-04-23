@@ -2,19 +2,19 @@
 #include "config.h"
 #include <M5Dial.h>
 
-// ── Render-Puffer (statisch, interner SRAM) ─────────────────────────────────
+// ── Render buffer (static, internal SRAM) ───────────────────────────────────
 static lv_color_t s_buf[DISPLAY_WIDTH * LV_BUF_LINES];
 static lv_disp_draw_buf_t s_draw_buf;
 
-// ── Display-Flush-Callback ──────────────────────────────────────────────────
-// Wird von LVGL aufgerufen wenn ein Bereich neu gerendert ist.
+// ── Display flush callback ───────────────────────────────────────────────────
+// Called by LVGL when a region has been rendered.
 static void disp_flush(lv_disp_drv_t* drv, const lv_area_t* area, lv_color_t* color_p) {
     uint32_t w = (uint32_t)(area->x2 - area->x1 + 1);
     uint32_t h = (uint32_t)(area->y2 - area->y1 + 1);
 
-    // M5GFX schreibt die Pixel direkt in den Display-RAM.
-    // lv_color_t ist uint16_t RGB565, LV_COLOR_16_SWAP=1 sorgt fuer
-    // korrekte Byte-Reihenfolge fuer das GC9A01-Display.
+    // M5GFX writes pixels directly into display RAM.
+    // lv_color_t is uint16_t RGB565, LV_COLOR_16_SWAP=1 ensures
+    // correct byte order for the GC9A01 display.
     M5Dial.Display.startWrite();
     M5Dial.Display.setAddrWindow(area->x1, area->y1, w, h);
     M5Dial.Display.writePixels((lgfx::rgb565_t*)color_p, w * h);
@@ -23,8 +23,8 @@ static void disp_flush(lv_disp_drv_t* drv, const lv_area_t* area, lv_color_t* co
     lv_disp_flush_ready(drv);
 }
 
-// ── Touch-Read-Callback ─────────────────────────────────────────────────────
-// M5Dial.update() wird bereits in loop() aufgerufen – hier nur State lesen.
+// ── Touch read callback ──────────────────────────────────────────────────────
+// M5Dial.update() is already called in loop() – only read state here.
 static void touch_read(lv_indev_drv_t* drv, lv_indev_data_t* data) {
     (void)drv;
     auto& touch = M5Dial.Touch;
@@ -39,12 +39,12 @@ static void touch_read(lv_indev_drv_t* drv, lv_indev_data_t* data) {
     }
 }
 
-// ── Initialisierung ─────────────────────────────────────────────────────────
+// ── Initialization ───────────────────────────────────────────────────────────
 void lvgl_driver_init() {
-    // Render-Puffer registrieren
+    // Register render buffer
     lv_disp_draw_buf_init(&s_draw_buf, s_buf, nullptr, DISPLAY_WIDTH * LV_BUF_LINES);
 
-    // Display-Treiber konfigurieren
+    // Configure display driver
     static lv_disp_drv_t disp_drv;
     lv_disp_drv_init(&disp_drv);
     disp_drv.hor_res     = DISPLAY_WIDTH;
@@ -53,7 +53,7 @@ void lvgl_driver_init() {
     disp_drv.draw_buf    = &s_draw_buf;
     lv_disp_drv_register(&disp_drv);
 
-    // Touch-Input-Device registrieren
+    // Register touch input device
     static lv_indev_drv_t touch_drv;
     lv_indev_drv_init(&touch_drv);
     touch_drv.type    = LV_INDEV_TYPE_POINTER;
