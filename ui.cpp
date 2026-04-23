@@ -10,25 +10,10 @@
 #define CLR_SEL_BG      0x1A1A1A   // Background of selected entry
 #define CLR_TEXT        0xFFFFFF   // Bright text (selected / active)
 #define CLR_TEXT_DIM    0x888888   // Dimmed text (not selected)
-#define CLR_SUCCESS     0xFFFFFF   // White during macro execution
-#define CLR_HINT        0x404040   // Status hint at bottom (very subtle)
 
 // ── Widget pointers (file scope) ─────────────────────────────────────────────
-static lv_obj_t* s_title  = nullptr;
 static lv_obj_t* s_roller = nullptr;
-static lv_obj_t* s_status = nullptr;
 static int       s_count  = 0;
-static String    s_hint   = "Turn=Select  |  Press=Run";
-
-// ── App title at top ─────────────────────────────────────────────────────────
-static void create_title(lv_obj_t* parent) {
-    s_title = lv_label_create(parent);
-    lv_label_set_text(s_title, "m5Macro");
-    lv_obj_align(s_title, LV_ALIGN_TOP_MID, 0, 24);
-
-    lv_obj_set_style_text_font (s_title, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(s_title, lv_color_hex(CLR_ACCENT), 0);
-}
 
 // ── Macro roller (center) ────────────────────────────────────────────────────
 static void create_roller(lv_obj_t* parent) {
@@ -69,18 +54,6 @@ static void create_roller(lv_obj_t* parent) {
     lv_obj_set_style_border_opa  (s_roller, LV_OPA_50,                 LV_PART_SELECTED);
 }
 
-// ── Status hint at bottom ────────────────────────────────────────────────────
-static void create_status(lv_obj_t* parent) {
-    s_status = lv_label_create(parent);
-    lv_label_set_text(s_status, s_hint.c_str());
-    lv_obj_set_width(s_status, 180);
-    lv_label_set_long_mode(s_status, LV_LABEL_LONG_SCROLL_CIRCULAR);
-    lv_obj_align(s_status, LV_ALIGN_BOTTOM_MID, 0, -24);
-
-    lv_obj_set_style_text_font (s_status, &lv_font_montserrat_14, 0);
-    lv_obj_set_style_text_color(s_status, lv_color_hex(CLR_HINT),  0);
-}
-
 // ── Public API ───────────────────────────────────────────────────────────────
 
 void ui_init() {
@@ -90,40 +63,14 @@ void ui_init() {
     lv_obj_set_style_bg_color(scr, lv_color_hex(CLR_BG),    0);
     lv_obj_set_style_bg_opa  (scr, LV_OPA_COVER,            0);
 
-    //create_title(scr);
     create_roller(scr);
-    //create_status(scr);
 }
 
-void ui_show_running(int index) {
-    // Status text: name of running macro, green
-    if (s_status) {
-        const MacroInfo* m = macro_store_get(index);
-        String msg = String(">> ") + (m ? m->name : "Running") + " ...";
-        lv_label_set_text(s_status, msg.c_str());
-        lv_obj_set_style_text_color(s_status, lv_color_hex(CLR_SUCCESS), 0);
-    }
-
-    // Title: green during execution
-    if (s_title) {
-        lv_obj_set_style_text_color(s_title, lv_color_hex(CLR_SUCCESS), 0);
-    }
-
+void ui_show_running(int /*index*/) {
     lv_timer_handler();  // Redraw immediately before blocking execution
 }
 
 void ui_show_idle() {
-    // Status text: usage hint, dimmed
-    if (s_status) {
-        lv_label_set_text(s_status, s_hint.c_str());
-        lv_obj_set_style_text_color(s_status, lv_color_hex(CLR_HINT), 0);
-    }
-
-    // Title: back to accent color
-    if (s_title) {
-        lv_obj_set_style_text_color(s_title, lv_color_hex(CLR_ACCENT), 0);
-    }
-
     lv_timer_handler();
 }
 
@@ -156,9 +103,3 @@ void ui_reload() {
     }
 }
 
-void ui_set_hint(const char* text) {
-    s_hint = text;
-    if (s_status) {
-        lv_label_set_text(s_status, s_hint.c_str());
-    }
-}

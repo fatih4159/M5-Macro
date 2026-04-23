@@ -15,7 +15,6 @@
  * Controls:
  *   Rotate encoder  → Select macro
  *   Press encoder   → Execute macro
- *   Touchscreen     → Tap to select/execute macro
  */
 
 // ── USB must be included first ──────────────────────────────────────────────
@@ -70,36 +69,6 @@ static void handle_encoder() {
             }
         }
         energy_save_activity();
-    }
-}
-
-// ── Touch gesture handling ──────────────────────────────────────────────────
-// Simple tap-to-execute: short tap anywhere on screen.
-static uint32_t s_touch_start = 0;
-static bool     s_touch_active = false;
-
-static void handle_touch() {
-    if (s_executing) return;
-
-    bool pressed = M5Dial.Touch.getCount() > 0;
-
-    if (pressed && !s_touch_active) {
-        s_touch_active = true;
-        s_touch_start  = millis();
-    } else if (!pressed && s_touch_active) {
-        s_touch_active = false;
-        uint32_t duration = millis() - s_touch_start;
-        // Tap: shorter than 400 ms
-        if (duration < 400) {
-            int idx = ui_get_selected();
-            if (macro_store_count() > 0) {
-                //s_executing = true;
-                //ui_show_running(idx);
-                //macro_execute(idx);
-                //ui_show_idle();
-                s_executing = false;
-            }
-        }
     }
 }
 
@@ -159,7 +128,6 @@ void setup() {
 
     // 7. Start web editor (WiFi AP + HTTP server)
     web_server_init();
-    ui_set_hint(("http://" + web_server_ip()).c_str());
 }
 
 // ── Main loop ────────────────────────────────────────────────────────────────
@@ -169,9 +137,6 @@ void loop() {
 
     // Process encoder rotation
     handle_encoder();
-
-    // Process touch gestures
-    handle_touch();
 
     // Process encoder button
     handle_button();

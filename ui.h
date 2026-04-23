@@ -22,5 +22,3 @@ void ui_set_selected(int index);
 // Call after every macro change via the web editor.
 void ui_reload();
 
-// Sets the hint text in the status line (e.g. WiFi address).
-void ui_set_hint(const char* text);
