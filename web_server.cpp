@@ -35,26 +35,42 @@ h1{color:#ffffff;font-size:16px;letter-spacing:2px}
 .settings-btn{background:none;border:1px solid #222222;border-radius:4px;color:#888888;cursor:pointer;font-size:16px;padding:5px 9px;line-height:1;flex-shrink:0}
 .settings-btn:hover{color:#e0e0e0;border-color:#444444}
 /* Settings Modal */
-#settings-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:center;justify-content:center}
+#settings-modal{display:none;position:fixed;inset:0;background:rgba(0,0,0,.85);z-index:200;align-items:flex-start;justify-content:center;overflow-y:auto;padding:4vh 8px 20px}
 #settings-modal.show{display:flex}
-.modal-box{background:var(--clr-surface);border:1px solid #333333;border-radius:6px;width:320px;max-width:95vw;max-height:90vh;overflow-y:auto;padding:20px;display:flex;flex-direction:column;gap:14px}
-.modal-hdr{display:flex;align-items:center;justify-content:space-between}
+.modal-box{background:var(--clr-surface);border:1px solid #2a2a2a;border-radius:8px;width:340px;max-width:96vw;display:flex;flex-direction:column;overflow:hidden}
+.modal-hdr{display:flex;align-items:center;justify-content:space-between;padding:14px 16px 13px;border-bottom:1px solid #1e1e1e}
 .modal-ttl{color:#ffffff;font-size:14px;letter-spacing:1px}
-.modal-x{background:none;border:none;color:#666666;font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
+.modal-x{background:none;border:none;color:#555555;font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
 .modal-x:hover{color:#e0e0e0}
+.s-sect{border-bottom:1px solid #1a1a1a}
+.s-sect:last-of-type{border-bottom:none}
+.s-hdr{width:100%;background:none;border:none;color:#666666;padding:11px 16px;display:flex;align-items:center;gap:9px;cursor:pointer;font-family:inherit;font-size:11px;text-align:left;letter-spacing:.5px;transition:background .12s,color .12s}
+.s-hdr:hover{background:#161616;color:#cccccc}
+.s-hdr.open{color:#dddddd;background:#141414}
+.s-ttl{flex:1;font-weight:bold;text-transform:uppercase}
+.s-chev{color:#333333;font-size:9px;transition:transform .18s}
+.s-hdr.open .s-chev{transform:rotate(90deg);color:#666666}
+.s-body{padding:14px 16px;display:flex;flex-direction:column;gap:11px;border-top:1px solid #1a1a1a}
+.s-body.closed{display:none}
+.s-danger .s-hdr{color:#663333}
+.s-danger .s-hdr:hover{background:#160808;color:#cc6060}
+.s-danger .s-hdr.open{color:#cc6060;background:#130606}
 .modal-fg{display:flex;flex-direction:column;gap:5px}
-.modal-lbl{color:#666666;font-size:10px;text-transform:uppercase;letter-spacing:1px}
-.modal-inp{background:var(--clr-bg);border:1px solid #333333;color:var(--clr-text);padding:9px 10px;border-radius:4px;width:100%;font-family:inherit;font-size:13px}
-.modal-inp:focus{outline:none;border-color:#888888}
-.modal-sep{border:none;border-top:1px solid #222222}
+.modal-lbl{color:#555555;font-size:10px;text-transform:uppercase;letter-spacing:1px}
+.modal-inp{background:var(--clr-bg);border:1px solid #2e2e2e;color:var(--clr-text);padding:9px 10px;border-radius:4px;width:100%;font-family:inherit;font-size:13px}
+.modal-inp:focus{outline:none;border-color:#666666}
+.btn-s{padding:9px;background:#1e1e1e;color:#aaaaaa;border:1px solid #2e2e2e;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px;width:100%;transition:background .12s}
+.btn-s:hover{background:#282828;color:#e0e0e0;border-color:#444444}
+.btn-s.prim{background:#1a2e1a;border-color:#2a4a2a;color:#7ac07a}
+.btn-s.prim:hover{background:#1f3a1f;border-color:#3a6a3a;color:#99d099}
 .modal-row{display:flex;gap:8px}
-.btn-modal-save{padding:9px;background:#333333;color:#ffffff;border:none;border-radius:4px;cursor:pointer;font-family:inherit;font-size:12px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
-.btn-modal-save:hover{background:#444444}
-.btn-restart{flex:1;padding:9px;background:#1a1a1a;color:#cccccc;border:1px solid #333333;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
+.btn-restart{flex:1;padding:9px;background:#181818;color:#aaaaaa;border:1px solid #2a2a2a;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
 .btn-restart:hover{background:#222222;color:#ffffff;border-color:#555555}
-.btn-boot{flex:1;padding:9px;background:#1a1a1a;color:#888888;border:1px solid #2a2a2a;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
-.btn-boot:hover{background:#222222;color:#cccccc;border-color:#444444}
-.modal-st{font-size:11px;min-height:14px;color:#aaaaaa;text-align:center}
+.btn-boot{flex:1;padding:9px;background:#1a0808;color:#884444;border:1px solid #2a1414;border-radius:4px;cursor:pointer;font-family:inherit;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
+.btn-boot:hover{background:#220a0a;color:#cc6060;border-color:#441515}
+.modal-st{font-size:11px;min-height:30px;padding:7px 16px;color:#666666;text-align:center;border-top:1px solid #1a1a1a;display:flex;align-items:center;justify-content:center}
+.modal-st.ok{color:#66aa66}
+.modal-st.err{color:#cc5555}
 /* Overlay */
 #ov{display:none;position:fixed;inset:0;background:rgba(0,0,0,.65);z-index:90}
 #ov.show{display:block}
@@ -175,72 +191,76 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
       <span class="modal-ttl">&#9881; Settings</span>
       <button class="modal-x" onclick="closeSettings()">&#10005;</button>
     </div>
-    <div class="modal-fg">
-      <label class="modal-lbl">WiFi SSID</label>
-      <input type="text" class="modal-inp" id="cfg-ssid" maxlength="32" placeholder="m5Macro" autocomplete="off">
-    </div>
-    <div class="modal-fg">
-      <label class="modal-lbl">WiFi Password (min. 8 characters)</label>
-      <input type="password" class="modal-inp" id="cfg-pass" maxlength="63" placeholder="(leave unchanged)" autocomplete="new-password">
-    </div>
-    <hr class="modal-sep">
-    <button class="btn-modal-save" onclick="saveSettings()" style="width:100%">&#10003; Save &amp; Restart</button>
-    <div class="modal-row">
-      <button class="btn-restart" onclick="doRestart()">&#8635; Restart</button>
-      <button class="btn-boot" onclick="doBootloader()">&#9660; Bootloader</button>
-    </div>
-    <hr class="modal-sep">
-    <div class="modal-fg">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <label class="modal-lbl" style="margin:0">&#9889; Energy Saving</label>
-        <label class="es-sw"><input type="checkbox" id="cfg-es-en"><span class="es-sl"></span></label>
+    <div class="s-sect">
+      <button class="s-hdr open" id="sh-wifi" onclick="togSect('sb-wifi','sh-wifi')">
+        <span>&#128246;</span><span class="s-ttl">WiFi</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body" id="sb-wifi">
+        <div class="modal-fg"><label class="modal-lbl">SSID</label><input type="text" class="modal-inp" id="cfg-ssid" maxlength="32" placeholder="m5Macro" autocomplete="off"></div>
+        <div class="modal-fg"><label class="modal-lbl">Password (min. 8 chars)</label><input type="password" class="modal-inp" id="cfg-pass" maxlength="63" placeholder="(leave unchanged)" autocomplete="new-password"></div>
+        <button class="btn-s prim" onclick="saveSettings()">&#10003; Save &amp; Restart</button>
       </div>
     </div>
-    <div class="modal-fg">
-      <label class="modal-lbl">Inactivity until dim (seconds)</label>
-      <input type="number" class="modal-inp" id="cfg-es-to" min="5" max="3600" value="30">
-    </div>
-    <div class="modal-fg">
-      <label class="modal-lbl">Dim brightness (0–255)</label>
-      <div class="es-row">
-        <input type="range" class="es-rng" id="cfg-es-db" min="0" max="255" value="10" oninput="document.getElementById('cfg-es-dbv').textContent=this.value">
-        <span class="es-val" id="cfg-es-dbv">10</span>
+    <div class="s-sect">
+      <button class="s-hdr" id="sh-energy" onclick="togSect('sb-energy','sh-energy')">
+        <span>&#9889;</span><span class="s-ttl">Energy Saving</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body closed" id="sb-energy">
+        <div class="modal-fg">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <label class="modal-lbl" style="margin:0">Enable</label>
+            <label class="es-sw"><input type="checkbox" id="cfg-es-en"><span class="es-sl"></span></label>
+          </div>
+        </div>
+        <div class="modal-fg"><label class="modal-lbl">Inactivity until dim (seconds)</label><input type="number" class="modal-inp" id="cfg-es-to" min="5" max="3600" value="30"></div>
+        <div class="modal-fg"><label class="modal-lbl">Dim brightness (0–255)</label><div class="es-row"><input type="range" class="es-rng" id="cfg-es-db" min="0" max="255" value="10" oninput="document.getElementById('cfg-es-dbv').textContent=this.value"><span class="es-val" id="cfg-es-dbv">10</span></div></div>
+        <div class="modal-fg"><label class="modal-lbl">Normal brightness (10–255)</label><div class="es-row"><input type="range" class="es-rng" id="cfg-es-ab" min="10" max="255" value="128" oninput="document.getElementById('cfg-es-abv').textContent=this.value"><span class="es-val" id="cfg-es-abv">128</span></div></div>
+        <button class="btn-s" onclick="saveEnergy()">&#9889; Save energy settings</button>
       </div>
     </div>
-    <div class="modal-fg">
-      <label class="modal-lbl">Normal brightness (10–255)</label>
-      <div class="es-row">
-        <input type="range" class="es-rng" id="cfg-es-ab" min="10" max="255" value="128" oninput="document.getElementById('cfg-es-abv').textContent=this.value">
-        <span class="es-val" id="cfg-es-abv">128</span>
+    <div class="s-sect">
+      <button class="s-hdr" id="sh-fwclr" onclick="togSect('sb-fwclr','sh-fwclr')">
+        <span>&#9632;</span><span class="s-ttl">Display Colors</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body closed" id="sb-fwclr">
+        <div class="clr-grid">
+          <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="fw-bg" value="#000000"></div>
+          <div class="clr-row"><span class="clr-lbl">Roller surface</span><input type="color" class="clr-inp" id="fw-surface" value="#000000"></div>
+          <div class="clr-row"><span class="clr-lbl">Accent (border)</span><input type="color" class="clr-inp" id="fw-accent" value="#808080"></div>
+          <div class="clr-row"><span class="clr-lbl">Selected background</span><input type="color" class="clr-inp" id="fw-sel-bg" value="#1a1a1a"></div>
+          <div class="clr-row"><span class="clr-lbl">Active text</span><input type="color" class="clr-inp" id="fw-text" value="#ffffff"></div>
+          <div class="clr-row"><span class="clr-lbl">Inactive text</span><input type="color" class="clr-inp" id="fw-text-dim" value="#888888"></div>
+        </div>
+        <button class="btn-s" onclick="saveFwColors()">&#9632; Save display colors</button>
       </div>
     </div>
-    <button class="btn-modal-save" onclick="saveEnergy()" style="width:100%">&#9889; Save energy settings</button>
-    <hr class="modal-sep">
-    <div class="modal-fg">
-      <label class="modal-lbl">&#9632; Display Colors (Firmware)</label>
+    <div class="s-sect">
+      <button class="s-hdr" id="sh-webclr" onclick="togSect('sb-webclr','sh-webclr')">
+        <span>&#9679;</span><span class="s-ttl">Web UI Colors</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body closed" id="sb-webclr">
+        <div class="clr-grid">
+          <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="web-bg" value="#0a0a0a"></div>
+          <div class="clr-row"><span class="clr-lbl">Surface (panels)</span><input type="color" class="clr-inp" id="web-surface" value="#111111"></div>
+          <div class="clr-row"><span class="clr-lbl">Border</span><input type="color" class="clr-inp" id="web-border" value="#222222"></div>
+          <div class="clr-row"><span class="clr-lbl">Text</span><input type="color" class="clr-inp" id="web-text" value="#e0e0e0"></div>
+          <div class="clr-row"><span class="clr-lbl">Dim text</span><input type="color" class="clr-inp" id="web-dim" value="#888888"></div>
+          <div class="clr-row"><span class="clr-lbl">Accent</span><input type="color" class="clr-inp" id="web-accent" value="#888888"></div>
+        </div>
+        <button class="btn-s" onclick="saveWebColors()">&#9679; Save web colors</button>
+      </div>
     </div>
-    <div class="clr-grid">
-      <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="fw-bg" value="#000000"></div>
-      <div class="clr-row"><span class="clr-lbl">Roller surface</span><input type="color" class="clr-inp" id="fw-surface" value="#000000"></div>
-      <div class="clr-row"><span class="clr-lbl">Accent (border)</span><input type="color" class="clr-inp" id="fw-accent" value="#808080"></div>
-      <div class="clr-row"><span class="clr-lbl">Selected background</span><input type="color" class="clr-inp" id="fw-sel-bg" value="#1a1a1a"></div>
-      <div class="clr-row"><span class="clr-lbl">Active text</span><input type="color" class="clr-inp" id="fw-text" value="#ffffff"></div>
-      <div class="clr-row"><span class="clr-lbl">Inactive text</span><input type="color" class="clr-inp" id="fw-text-dim" value="#888888"></div>
+    <div class="s-sect s-danger">
+      <button class="s-hdr" id="sh-dev" onclick="togSect('sb-dev','sh-dev')">
+        <span>&#9888;</span><span class="s-ttl">Device</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body closed" id="sb-dev">
+        <div class="modal-row">
+          <button class="btn-restart" onclick="doRestart()">&#8635; Restart</button>
+          <button class="btn-boot" onclick="doBootloader()">&#9660; Bootloader</button>
+        </div>
+      </div>
     </div>
-    <button class="btn-modal-save" onclick="saveFwColors()" style="width:100%">&#9632; Save display colors</button>
-    <hr class="modal-sep">
-    <div class="modal-fg">
-      <label class="modal-lbl">&#9632; Web UI Colors</label>
-    </div>
-    <div class="clr-grid">
-      <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="web-bg" value="#0a0a0a"></div>
-      <div class="clr-row"><span class="clr-lbl">Surface (panels)</span><input type="color" class="clr-inp" id="web-surface" value="#111111"></div>
-      <div class="clr-row"><span class="clr-lbl">Border</span><input type="color" class="clr-inp" id="web-border" value="#222222"></div>
-      <div class="clr-row"><span class="clr-lbl">Text</span><input type="color" class="clr-inp" id="web-text" value="#e0e0e0"></div>
-      <div class="clr-row"><span class="clr-lbl">Dim text</span><input type="color" class="clr-inp" id="web-dim" value="#888888"></div>
-      <div class="clr-row"><span class="clr-lbl">Accent</span><input type="color" class="clr-inp" id="web-accent" value="#888888"></div>
-    </div>
-    <button class="btn-modal-save" onclick="saveWebColors()" style="width:100%">&#9632; Save web colors</button>
     <div class="modal-st" id="modal-st"></div>
   </div>
 </div>
@@ -314,8 +334,9 @@ function openSettings(){
   });
 }
 function closeSettings(){document.getElementById('settings-modal').classList.remove('show');}
+function togSect(bodyId,hdrId){var b=document.getElementById(bodyId);var h=document.getElementById(hdrId);var closing=!b.classList.contains('closed');b.classList.toggle('closed',closing);h.classList.toggle('open',!closing);}
 
-function mst(msg){document.getElementById('modal-st').textContent=msg;}
+function mst(msg,cls){var el=document.getElementById('modal-st');el.textContent=msg;el.className='modal-st'+(cls?' '+cls:'');}
 
 async function saveSettings(){
   var ssid=(document.getElementById('cfg-ssid').value||'').trim();
@@ -327,9 +348,9 @@ async function saveSettings(){
   try{
     var r=await fetch('/api/settings',{method:'POST',body:body});
     var j=await r.json();
-    if(j.ok){mst('Saved! Device is restarting...');}
-    else mst('Error: '+(j.err||'?'));
-  }catch(e){mst('Connection lost – restarting.');}
+    if(j.ok){mst('Saved! Device is restarting...','ok');}
+    else mst('Error: '+(j.err||'?'),'err');
+  }catch(e){mst('Connection lost – restarting.','err');}
 }
 
 async function doRestart(){
@@ -456,9 +477,9 @@ async function saveFwColors(){
   try{
     var r=await fetch('/api/colors',{method:'POST',body:body});
     var j=await r.json();
-    if(j.ok)mst('Display colors saved!');
-    else mst('Error: '+(j.err||'?'));
-  }catch(e){mst('Connection error');}
+    if(j.ok)mst('Display colors saved!','ok');
+    else mst('Error: '+(j.err||'?'),'err');
+  }catch(e){mst('Connection error','err');}
 }
 
 async function saveWebColors(){
@@ -474,9 +495,9 @@ async function saveWebColors(){
   try{
     var r=await fetch('/api/webcolors',{method:'POST',body:new URLSearchParams(vals)});
     var j=await r.json();
-    if(j.ok){applyWebColors(vals);mst('Web colors saved!');}
-    else mst('Error: '+(j.err||'?'));
-  }catch(e){mst('Connection error');}
+    if(j.ok){applyWebColors(vals);mst('Web colors saved!','ok');}
+    else mst('Error: '+(j.err||'?'),'err');
+  }catch(e){mst('Connection error','err');}
 }
 
 async function load(){
@@ -562,9 +583,9 @@ async function saveEnergy(){
   try{
     var r=await fetch('/api/energy',{method:'POST',body:new URLSearchParams({enabled:en,timeout_s:to,dim_br:db,active_br:ab})});
     var j=await r.json();
-    if(j.ok)mst('Energy settings saved!');
-    else mst('Error: '+(j.err||'?'));
-  }catch(e){mst('Connection error');}
+    if(j.ok)mst('Energy settings saved!','ok');
+    else mst('Error: '+(j.err||'?'),'err');
+  }catch(e){mst('Connection error','err');}
 }
 
 document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();}});
