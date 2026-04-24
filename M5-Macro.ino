@@ -141,8 +141,10 @@ void loop() {
     // Process encoder button
     handle_button();
 
-    // Render LVGL (incl. touch input from lvgl_driver.cpp)
-    lv_timer_handler();
+    // Render LVGL – skip while GIF screensaver is active to avoid display conflicts
+    if (!energy_save_is_showing_gif()) {
+        lv_timer_handler();
+    }
 
     // Handle incoming HTTP requests (non-blocking)
     web_server_handle();

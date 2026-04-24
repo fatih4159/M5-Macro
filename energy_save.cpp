@@ -2,6 +2,24 @@
 #include "config.h"
 #include <M5Dial.h>
 #include <Preferences.h>
+#include <LittleFS.h>
+#include <lvgl.h>
+
+static const char* GIF_PATH = "/screensaver.gif";
+
+// FreeRTOS task handle for GIF playback (pinned to core 0)
+static TaskHandle_t s_gif_task_handle = nullptr;
+static bool s_showing_gif = false;
+
+static void gif_screensaver_task(void*) {
+    while (true) {
+        if (LittleFS.exists(GIF_PATH)) {
+            M5Dial.Display.drawGifFile(LittleFS, GIF_PATH, 0, 0, 25, 1);
+        } else {
+            vTaskDelay(pdMS_TO_TICKS(1000));
+        }
+    }
+}
 
 namespace {
   constexpr const char* PREF_NS = "energy";
@@ -9,6 +27,7 @@ namespace {
   constexpr const char* KEY_TIMEOUT = "timeout_s";
   constexpr const char* KEY_DIM_BR = "dim_br";
   constexpr const char* KEY_ACTIVE_BR = "active_br";
+  constexpr const char* KEY_SS_GIF = "ss_gif";
 
   bool s_enabled = true;
   uint32_t s_timeout_ms = (uint32_t)ENERGY_SAVE_TIMEOUT_DEFAULT * 1000UL;
@@ -16,6 +35,7 @@ namespace {
   uint8_t s_active_brightness = ENERGY_SAVE_ACTIVE_BRIGHTNESS;
   uint32_t s_last_activity = 0;
   bool s_dimmed = false;
+  bool s_ss_gif_mode = false;
 
   uint8_t clamp_brightness(uint8_t value) {
     if (value > 255) return 255;
@@ -32,29 +52,54 @@ namespace {
     prefs.putUInt(KEY_TIMEOUT, s_timeout_ms / 1000UL);
     prefs.putUInt(KEY_DIM_BR, s_dim_brightness);
     prefs.putUInt(KEY_ACTIVE_BR, s_active_brightness);
+    prefs.putBool(KEY_SS_GIF, s_ss_gif_mode);
     prefs.end();
   }
 
   void apply_active_state() {
+    if (s_gif_task_handle && s_showing_gif) {
+      vTaskSuspend(s_gif_task_handle);
+    }
+    s_showing_gif = false;
     s_dimmed = false;
     M5Dial.Display.wakeup();
     M5Dial.Display.setBrightness(s_active_brightness);
+    lv_obj_invalidate(lv_scr_act());
   }
 
   void apply_dimmed_state() {
     s_dimmed = true;
-    M5Dial.Display.setBrightness(s_dim_brightness);
-    M5Dial.Display.sleep();
+    if (s_ss_gif_mode && LittleFS.exists(GIF_PATH)) {
+      M5Dial.Display.wakeup();
+      M5Dial.Display.setBrightness(s_active_brightness);
+      s_showing_gif = true;
+      if (s_gif_task_handle == nullptr) {
+        xTaskCreatePinnedToCore(gif_screensaver_task, "gif_ss", 8192, nullptr, 1, &s_gif_task_handle, 0);
+      } else {
+        vTaskResume(s_gif_task_handle);
+      }
+    } else {
+      s_showing_gif = false;
+      M5Dial.Display.setBrightness(s_dim_brightness);
+      M5Dial.Display.sleep();
+    }
   }
 }
 
 void energy_save_init() {
+  // Stop GIF task before reloading settings
+  if (s_gif_task_handle && s_showing_gif) {
+    vTaskSuspend(s_gif_task_handle);
+    s_showing_gif = false;
+  }
+
   Preferences prefs;
   if (prefs.begin(PREF_NS, true)) {
     s_enabled = prefs.getBool(KEY_ENABLED, true);
     s_timeout_ms = (uint32_t)prefs.getUInt(KEY_TIMEOUT, ENERGY_SAVE_TIMEOUT_DEFAULT) * 1000UL;
     s_dim_brightness = (uint8_t)prefs.getUInt(KEY_DIM_BR, ENERGY_SAVE_DIM_BRIGHTNESS);
     s_active_brightness = (uint8_t)prefs.getUInt(KEY_ACTIVE_BR, ENERGY_SAVE_ACTIVE_BRIGHTNESS);
+    s_ss_gif_mode = prefs.getBool(KEY_SS_GIF, false);
     prefs.end();
   }
 
@@ -183,4 +228,33 @@ void energy_save_set_active_brightness(uint8_t brightness) {
 
 uint8_t energy_save_get_active_brightness() {
   return s_active_brightness;
+}
+
+bool energy_save_screensaver_gif_mode() {
+  return s_ss_gif_mode;
+}
+
+void energy_save_set_screensaver_gif_mode(bool enabled) {
+  s_ss_gif_mode = enabled;
+  save_preferences();
+}
+
+bool energy_save_is_showing_gif() {
+  return s_showing_gif;
+}
+
+bool energy_save_has_gif() {
+  return LittleFS.exists(GIF_PATH);
+}
+
+void energy_save_notify_gif_changed() {
+  if (s_showing_gif && !LittleFS.exists(GIF_PATH)) {
+    // GIF was deleted while screensaver is active – fall back to dim mode
+    if (s_gif_task_handle) {
+      vTaskSuspend(s_gif_task_handle);
+    }
+    s_showing_gif = false;
+    M5Dial.Display.setBrightness(s_dim_brightness);
+    M5Dial.Display.sleep();
+  }
 }
