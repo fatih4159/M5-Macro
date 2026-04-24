@@ -6,6 +6,7 @@
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
+#include <LittleFS.h>
 #include "esp_system.h"
 #include "soc/rtc_cntl_reg.h"
 
@@ -234,21 +235,41 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
         <button class="btn-s" onclick="saveFwColors()">&#9632; Save display colors</button>
       </div>
     </div>
-    <div class="s-sect">
-      <button class="s-hdr" id="sh-webclr" onclick="togSect('sb-webclr','sh-webclr')">
-        <span>&#9679;</span><span class="s-ttl">Web UI Colors</span><span class="s-chev">&#9654;</span>
-      </button>
-      <div class="s-body closed" id="sb-webclr">
-        <div class="clr-grid">
-          <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="web-bg" value="#0a0a0a"></div>
-          <div class="clr-row"><span class="clr-lbl">Surface (panels)</span><input type="color" class="clr-inp" id="web-surface" value="#111111"></div>
-          <div class="clr-row"><span class="clr-lbl">Border</span><input type="color" class="clr-inp" id="web-border" value="#222222"></div>
-          <div class="clr-row"><span class="clr-lbl">Text</span><input type="color" class="clr-inp" id="web-text" value="#e0e0e0"></div>
-          <div class="clr-row"><span class="clr-lbl">Dim text</span><input type="color" class="clr-inp" id="web-dim" value="#888888"></div>
-          <div class="clr-row"><span class="clr-lbl">Accent</span><input type="color" class="clr-inp" id="web-accent" value="#888888"></div>
-        </div>
-        <button class="btn-s" onclick="saveWebColors()">&#9679; Save web colors</button>
+    <button class="btn-modal-save" onclick="saveEnergy()" style="width:100%">&#9889; Save energy settings</button>
+    <hr class="modal-sep">
+    <div class="modal-fg">
+      <label class="modal-lbl">&#127916; Screensaver GIF</label>
+    </div>
+    <div class="modal-fg">
+      <div style="display:flex;align-items:center;justify-content:space-between">
+        <label class="modal-lbl" style="margin:0">Play GIF on inactivity</label>
+        <label class="es-sw"><input type="checkbox" id="cfg-ss-gif"><span class="es-sl"></span></label>
       </div>
+    </div>
+    <div class="modal-fg">
+      <div id="ss-gif-st" style="color:#666666;font-size:11px;margin-bottom:6px">No GIF uploaded</div>
+      <input type="file" id="ss-gif-file" accept=".gif,image/gif" class="modal-inp" style="padding:7px;cursor:pointer">
+    </div>
+    <div class="modal-row">
+      <button class="btn-modal-save" onclick="uploadGif()" style="flex:1">&#8679; Upload GIF</button>
+      <button class="btn-restart" onclick="deleteGif()" style="flex:1">&#10007; Delete GIF</button>
+    </div>
+    <hr class="modal-sep">
+    <div class="modal-fg">
+      <label class="modal-lbl">&#9632; Display Colors (Firmware)</label>
+    </div>
+    <div class="clr-grid">
+      <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="fw-bg" value="#000000"></div>
+      <div class="clr-row"><span class="clr-lbl">Roller surface</span><input type="color" class="clr-inp" id="fw-surface" value="#000000"></div>
+      <div class="clr-row"><span class="clr-lbl">Accent (border)</span><input type="color" class="clr-inp" id="fw-accent" value="#808080"></div>
+      <div class="clr-row"><span class="clr-lbl">Selected background</span><input type="color" class="clr-inp" id="fw-sel-bg" value="#1a1a1a"></div>
+      <div class="clr-row"><span class="clr-lbl">Active text</span><input type="color" class="clr-inp" id="fw-text" value="#ffffff"></div>
+      <div class="clr-row"><span class="clr-lbl">Inactive text</span><input type="color" class="clr-inp" id="fw-text-dim" value="#888888"></div>
+    </div>
+    <button class="btn-modal-save" onclick="saveFwColors()" style="width:100%">&#9632; Save display colors</button>
+    <hr class="modal-sep">
+    <div class="modal-fg">
+      <label class="modal-lbl">&#9632; Web UI Colors</label>
     </div>
     <div class="s-sect s-danger">
       <button class="s-hdr" id="sh-dev" onclick="togSect('sb-dev','sh-dev')">
@@ -304,9 +325,10 @@ function openSettings(){
     fetch('/api/settings').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/energy').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/colors').then(function(r){return r.json();}).catch(function(){return{};}),
-    fetch('/api/webcolors').then(function(r){return r.json();}).catch(function(){return{};})
+    fetch('/api/webcolors').then(function(r){return r.json();}).catch(function(){return{};}),
+    fetch('/api/screensaver').then(function(r){return r.json();}).catch(function(){return{};})
   ]).then(function(res){
-    var j=res[0],e=res[1],fc=res[2],wc=res[3];
+    var j=res[0],e=res[1],fc=res[2],wc=res[3],ss=res[4];
     document.getElementById('cfg-ssid').value=j.ssid||'';
     document.getElementById('cfg-pass').value='';
     document.getElementById('modal-st').textContent='';
@@ -314,6 +336,9 @@ function openSettings(){
     if(e.timeout_s!==undefined)document.getElementById('cfg-es-to').value=e.timeout_s;
     if(e.dim_br!==undefined){document.getElementById('cfg-es-db').value=e.dim_br;document.getElementById('cfg-es-dbv').textContent=e.dim_br;}
     if(e.active_br!==undefined){document.getElementById('cfg-es-ab').value=e.active_br;document.getElementById('cfg-es-abv').textContent=e.active_br;}
+    if(ss.gif_mode!==undefined)document.getElementById('cfg-ss-gif').checked=!!ss.gif_mode;
+    var ssst=document.getElementById('ss-gif-st');
+    if(ssst){if(ss.has_gif){ssst.textContent='GIF: hochgeladen \u2713';ssst.style.color='#aaaaaa';}else{ssst.textContent='Kein GIF hochgeladen';ssst.style.color='#666666';}}
     if(fc.bg!==undefined){
       document.getElementById('fw-bg').value='#'+fc.bg;
       document.getElementById('fw-surface').value='#'+fc.surface;
@@ -579,13 +604,38 @@ async function saveEnergy(){
   var to=parseInt(document.getElementById('cfg-es-to').value)||30;
   var db=parseInt(document.getElementById('cfg-es-db').value)||10;
   var ab=parseInt(document.getElementById('cfg-es-ab').value)||128;
+  var gm=document.getElementById('cfg-ss-gif').checked?'1':'0';
   mst('Saving...');
   try{
-    var r=await fetch('/api/energy',{method:'POST',body:new URLSearchParams({enabled:en,timeout_s:to,dim_br:db,active_br:ab})});
+    var r=await fetch('/api/energy',{method:'POST',body:new URLSearchParams({enabled:en,timeout_s:to,dim_br:db,active_br:ab,gif_mode:gm})});
     var j=await r.json();
     if(j.ok)mst('Energy settings saved!','ok');
     else mst('Error: '+(j.err||'?'),'err');
   }catch(e){mst('Connection error','err');}
+}
+
+async function uploadGif(){
+  var f=document.getElementById('ss-gif-file').files[0];
+  if(!f){mst('Keine Datei ausgewählt.');return;}
+  mst('Uploading...');
+  var fd=new FormData();fd.append('file',f);
+  try{
+    var r=await fetch('/api/screensaver/upload',{method:'POST',body:fd});
+    var j=await r.json();
+    if(j.ok){mst('GIF hochgeladen!');var ssst=document.getElementById('ss-gif-st');if(ssst){ssst.textContent='GIF: hochgeladen \u2713';ssst.style.color='#aaaaaa';}}
+    else mst('Fehler: '+(j.err||'?'));
+  }catch(e){mst('Upload fehlgeschlagen.');}
+}
+
+async function deleteGif(){
+  if(!confirm('Screensaver GIF löschen?'))return;
+  mst('Löschen...');
+  try{
+    var r=await fetch('/api/screensaver/delete',{method:'POST'});
+    var j=await r.json();
+    if(j.ok){mst('GIF gelöscht.');var ssst=document.getElementById('ss-gif-st');if(ssst){ssst.textContent='Kein GIF hochgeladen';ssst.style.color='#666666';}}
+    else mst('Fehler: '+(j.err||'?'));
+  }catch(e){mst('Fehler.');}
 }
 
 document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();}});
@@ -746,7 +796,8 @@ static void handle_api_energy_get() {
     String json = "{\"enabled\":"    + String(enabled ? "true" : "false") +
                   ",\"timeout_s\":"  + String(timeout_s) +
                   ",\"dim_br\":"     + String(dim_br) +
-                  ",\"active_br\":"  + String(active_br) + "}";
+                  ",\"active_br\":"  + String(active_br) +
+                  ",\"gif_mode\":"   + String(energy_save_screensaver_gif_mode() ? "true" : "false") + "}";
     server.send(200, "application/json", json);
 }
 
@@ -765,6 +816,8 @@ static void handle_api_energy_post() {
         prefs.putUInt("dim_br", (uint32_t)constrain(server.arg("dim_br").toInt(), 0, 255));
     if (server.hasArg("active_br"))
         prefs.putUInt("active_br", (uint32_t)constrain(server.arg("active_br").toInt(), 10, 255));
+    if (server.hasArg("gif_mode"))
+        prefs.putBool("ss_gif", server.arg("gif_mode") == "1");
     prefs.end();
 
     energy_save_init();   // Apply new settings immediately
@@ -846,6 +899,39 @@ static void handle_api_webcolors_post() {
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
+static void handle_api_screensaver_get() {
+    bool has_gif  = LittleFS.exists("/screensaver.gif");
+    bool gif_mode = energy_save_screensaver_gif_mode();
+    server.send(200, "application/json",
+        "{\"has_gif\":"  + String(has_gif  ? "true" : "false") +
+        ",\"gif_mode\":" + String(gif_mode ? "true" : "false") + "}");
+}
+
+static File s_upload_file;
+
+static void handle_screensaver_upload_done() {
+    bool ok = LittleFS.exists("/screensaver.gif");
+    server.send(200, "application/json",
+        ok ? "{\"ok\":true}" : "{\"ok\":false,\"err\":\"Upload failed\"}");
+}
+
+static void handle_screensaver_upload() {
+    HTTPUpload& upload = server.upload();
+    if (upload.status == UPLOAD_FILE_START) {
+        s_upload_file = LittleFS.open("/screensaver.gif", "w");
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+        if (s_upload_file) s_upload_file.write(upload.buf, upload.currentSize);
+    } else if (upload.status == UPLOAD_FILE_END) {
+        if (s_upload_file) s_upload_file.close();
+    }
+}
+
+static void handle_api_screensaver_delete() {
+    LittleFS.remove("/screensaver.gif");
+    energy_save_notify_gif_changed();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
 static void handle_not_found() {
     server.send(404, "text/plain", "Not found");
 }
@@ -878,6 +964,9 @@ void web_server_init() {
     server.on("/api/colors",             HTTP_POST, handle_api_colors_post);
     server.on("/api/webcolors",          HTTP_GET,  handle_api_webcolors_get);
     server.on("/api/webcolors",          HTTP_POST, handle_api_webcolors_post);
+    server.on("/api/screensaver",        HTTP_GET,  handle_api_screensaver_get);
+    server.on("/api/screensaver/upload", HTTP_POST, handle_screensaver_upload_done, handle_screensaver_upload);
+    server.on("/api/screensaver/delete", HTTP_POST, handle_api_screensaver_delete);
     server.onNotFound(handle_not_found);
 
     server.begin();

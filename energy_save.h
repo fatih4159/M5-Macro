@@ -21,3 +21,9 @@ uint8_t energy_save_get_dim_brightness();
 
 void energy_save_set_active_brightness(uint8_t brightness);
 uint8_t energy_save_get_active_brightness();
+
+bool energy_save_screensaver_gif_mode();
+void energy_save_set_screensaver_gif_mode(bool enabled);
+bool energy_save_is_showing_gif();
+bool energy_save_has_gif();
+void energy_save_notify_gif_changed();
