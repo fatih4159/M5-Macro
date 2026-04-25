@@ -38,7 +38,7 @@ static bool s_showing_gif = false;
 
 static void gif_screensaver_task(void*) {
     if (!s_gif_init_done) {
-        s_gif_decoder.begin(GIF_LITTLE_ENDIAN);
+        s_gif_decoder.begin();
         s_gif_init_done = true;
     }
     while (true) {
