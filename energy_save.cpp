@@ -4,19 +4,53 @@
 #include <Preferences.h>
 #include <LittleFS.h>
 #include <lvgl.h>
+#include <AnimatedGIF.h>
 
 static const char* GIF_PATH = "/screensaver.gif";
+
+// ── AnimatedGIF decoder (global so it is initialised once) ───────────────────
+static AnimatedGIF s_gif_decoder;
+static bool        s_gif_init_done = false;
+static File        s_gif_fh;          // file handle used by the callbacks
+static uint16_t    s_gif_line[240];   // one row of RGB565 pixels
+
+static void* gif_open_cb(const char* path, int32_t* size) {
+    s_gif_fh = LittleFS.open(path, "r");
+    if (!s_gif_fh) return nullptr;
+    *size = (int32_t)s_gif_fh.size();
+    return (void*)&s_gif_fh;
+}
+static void    gif_close_cb(void*)                           { if (s_gif_fh) s_gif_fh.close(); }
+static int32_t gif_read_cb (GIFFILE* , uint8_t* buf, int32_t len) { return (int32_t)s_gif_fh.read(buf, len); }
+static int32_t gif_seek_cb (GIFFILE* , int32_t pos)         { s_gif_fh.seek(pos); return pos; }
+
+static void gif_draw_cb(GIFDRAW* pDraw) {
+    uint16_t* pal    = pDraw->pPalette;
+    uint8_t*  pixels = pDraw->pPixels;
+    int       w      = (pDraw->iWidth > 240) ? 240 : pDraw->iWidth;
+    for (int i = 0; i < w; i++) s_gif_line[i] = pal[pixels[i]];
+    M5Dial.Display.pushImage(pDraw->iX, pDraw->iY + pDraw->y, w, 1, s_gif_line);
+}
 
 // FreeRTOS task handle for GIF playback (pinned to core 0)
 static TaskHandle_t s_gif_task_handle = nullptr;
 static bool s_showing_gif = false;
 
 static void gif_screensaver_task(void*) {
+    if (!s_gif_init_done) {
+        s_gif_decoder.begin(GIF_LITTLE_ENDIAN);
+        s_gif_init_done = true;
+    }
     while (true) {
-        if (LittleFS.exists(GIF_PATH)) {
-            M5Dial.Display.drawGifFile(LittleFS, GIF_PATH, 0, 0, 25, 1);
+        if (LittleFS.exists(GIF_PATH) &&
+            s_gif_decoder.open(GIF_PATH, gif_open_cb, gif_close_cb, gif_read_cb, gif_seek_cb, gif_draw_cb)) {
+            int delay_ms = 0;
+            while (s_gif_decoder.playFrame(false, &delay_ms)) {
+                if (delay_ms > 0) vTaskDelay(pdMS_TO_TICKS(delay_ms));
+            }
+            s_gif_decoder.close();
         } else {
-            vTaskDelay(pdMS_TO_TICKS(1000));
+            vTaskDelay(pdMS_TO_TICKS(2000));
         }
     }
 }
