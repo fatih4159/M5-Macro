@@ -216,6 +216,20 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
         <div class="modal-fg"><label class="modal-lbl">Inactivity until dim (seconds)</label><input type="number" class="modal-inp" id="cfg-es-to" min="5" max="3600" value="30"></div>
         <div class="modal-fg"><label class="modal-lbl">Dim brightness (0–255)</label><div class="es-row"><input type="range" class="es-rng" id="cfg-es-db" min="0" max="255" value="10" oninput="document.getElementById('cfg-es-dbv').textContent=this.value"><span class="es-val" id="cfg-es-dbv">10</span></div></div>
         <div class="modal-fg"><label class="modal-lbl">Normal brightness (10–255)</label><div class="es-row"><input type="range" class="es-rng" id="cfg-es-ab" min="10" max="255" value="128" oninput="document.getElementById('cfg-es-abv').textContent=this.value"><span class="es-val" id="cfg-es-abv">128</span></div></div>
+        <div class="modal-fg">
+          <div style="display:flex;align-items:center;justify-content:space-between">
+            <label class="modal-lbl" style="margin:0">&#127916; Play GIF on inactivity</label>
+            <label class="es-sw"><input type="checkbox" id="cfg-ss-gif"><span class="es-sl"></span></label>
+          </div>
+        </div>
+        <div class="modal-fg">
+          <div id="ss-gif-st" style="color:#666666;font-size:11px;margin-bottom:6px">No GIF uploaded</div>
+          <input type="file" id="ss-gif-file" accept=".gif,image/gif" class="modal-inp" style="padding:7px;cursor:pointer">
+        </div>
+        <div class="modal-row">
+          <button class="btn-s prim" onclick="uploadGif()">&#8679; Upload GIF</button>
+          <button class="btn-restart" onclick="deleteGif()">&#10007; Delete GIF</button>
+        </div>
         <button class="btn-s" onclick="saveEnergy()">&#9889; Save energy settings</button>
       </div>
     </div>
@@ -235,41 +249,21 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
         <button class="btn-s" onclick="saveFwColors()">&#9632; Save display colors</button>
       </div>
     </div>
-    <button class="btn-modal-save" onclick="saveEnergy()" style="width:100%">&#9889; Save energy settings</button>
-    <hr class="modal-sep">
-    <div class="modal-fg">
-      <label class="modal-lbl">&#127916; Screensaver GIF</label>
-    </div>
-    <div class="modal-fg">
-      <div style="display:flex;align-items:center;justify-content:space-between">
-        <label class="modal-lbl" style="margin:0">Play GIF on inactivity</label>
-        <label class="es-sw"><input type="checkbox" id="cfg-ss-gif"><span class="es-sl"></span></label>
+    <div class="s-sect">
+      <button class="s-hdr" id="sh-webclr" onclick="togSect('sb-webclr','sh-webclr')">
+        <span>&#9632;</span><span class="s-ttl">Web UI Colors</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body closed" id="sb-webclr">
+        <div class="clr-grid">
+          <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="web-bg" value="#0a0a0a"></div>
+          <div class="clr-row"><span class="clr-lbl">Surface</span><input type="color" class="clr-inp" id="web-surface" value="#111111"></div>
+          <div class="clr-row"><span class="clr-lbl">Border</span><input type="color" class="clr-inp" id="web-border" value="#222222"></div>
+          <div class="clr-row"><span class="clr-lbl">Text</span><input type="color" class="clr-inp" id="web-text" value="#e0e0e0"></div>
+          <div class="clr-row"><span class="clr-lbl">Dim text</span><input type="color" class="clr-inp" id="web-dim" value="#888888"></div>
+          <div class="clr-row"><span class="clr-lbl">Accent</span><input type="color" class="clr-inp" id="web-accent" value="#888888"></div>
+        </div>
+        <button class="btn-s" onclick="saveWebColors()">&#9632; Save web colors</button>
       </div>
-    </div>
-    <div class="modal-fg">
-      <div id="ss-gif-st" style="color:#666666;font-size:11px;margin-bottom:6px">No GIF uploaded</div>
-      <input type="file" id="ss-gif-file" accept=".gif,image/gif" class="modal-inp" style="padding:7px;cursor:pointer">
-    </div>
-    <div class="modal-row">
-      <button class="btn-modal-save" onclick="uploadGif()" style="flex:1">&#8679; Upload GIF</button>
-      <button class="btn-restart" onclick="deleteGif()" style="flex:1">&#10007; Delete GIF</button>
-    </div>
-    <hr class="modal-sep">
-    <div class="modal-fg">
-      <label class="modal-lbl">&#9632; Display Colors (Firmware)</label>
-    </div>
-    <div class="clr-grid">
-      <div class="clr-row"><span class="clr-lbl">Background</span><input type="color" class="clr-inp" id="fw-bg" value="#000000"></div>
-      <div class="clr-row"><span class="clr-lbl">Roller surface</span><input type="color" class="clr-inp" id="fw-surface" value="#000000"></div>
-      <div class="clr-row"><span class="clr-lbl">Accent (border)</span><input type="color" class="clr-inp" id="fw-accent" value="#808080"></div>
-      <div class="clr-row"><span class="clr-lbl">Selected background</span><input type="color" class="clr-inp" id="fw-sel-bg" value="#1a1a1a"></div>
-      <div class="clr-row"><span class="clr-lbl">Active text</span><input type="color" class="clr-inp" id="fw-text" value="#ffffff"></div>
-      <div class="clr-row"><span class="clr-lbl">Inactive text</span><input type="color" class="clr-inp" id="fw-text-dim" value="#888888"></div>
-    </div>
-    <button class="btn-modal-save" onclick="saveFwColors()" style="width:100%">&#9632; Save display colors</button>
-    <hr class="modal-sep">
-    <div class="modal-fg">
-      <label class="modal-lbl">&#9632; Web UI Colors</label>
     </div>
     <div class="s-sect s-danger">
       <button class="s-hdr" id="sh-dev" onclick="togSect('sb-dev','sh-dev')">
