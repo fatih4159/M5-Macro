@@ -10,7 +10,6 @@ static const char* GIF_PATH = "/screensaver.gif";
 
 // ── AnimatedGIF decoder ───────────────────────────────────────────────────────
 static AnimatedGIF s_gif_decoder;
-static bool        s_gif_init_done = false;
 static File        s_gif_fh;
 
 // Line buffer sized for full display width (destination after scaling)
@@ -149,7 +148,8 @@ namespace {
     } else {
       s_showing_gif = false;
       M5Dial.Display.setBrightness(s_dim_brightness);
-      M5Dial.Display.sleep();
+      // Don't call sleep() here — that blanks the panel completely.
+      // sleep() is only called in apply_off_state() for full turn-off.
     }
   }
 }
@@ -206,10 +206,8 @@ void energy_save_gif_tick() {
 
   if (!s_gif_file_open) {
     if (!LittleFS.exists(GIF_PATH)) return;
-    if (!s_gif_init_done) {
-      s_gif_decoder.begin();
-      s_gif_init_done = true;
-    }
+    // Always call begin() before open() to reset decoder state
+    s_gif_decoder.begin();
     if (!s_gif_decoder.open(GIF_PATH, gif_open_cb, gif_close_cb,
                              gif_read_cb, gif_seek_cb, gif_draw_cb)) {
       return;
@@ -228,8 +226,6 @@ void energy_save_gif_tick() {
       s_gif_off_x = 0;
       s_gif_off_y = 0;
     }
-    // Clear letterbox bars before first frame
-    M5Dial.Display.fillScreen(0);
     s_gif_file_open  = true;
     s_gif_next_frame = now;
   }
