@@ -25,5 +25,6 @@ uint8_t energy_save_get_active_brightness();
 bool energy_save_screensaver_gif_mode();
 void energy_save_set_screensaver_gif_mode(bool enabled);
 bool energy_save_is_showing_gif();
+void energy_save_gif_tick();
 bool energy_save_has_gif();
 void energy_save_notify_gif_changed();

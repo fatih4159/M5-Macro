@@ -8,11 +8,11 @@
 
 static const char* GIF_PATH = "/screensaver.gif";
 
-// ── AnimatedGIF decoder (global so it is initialised once) ───────────────────
+// ── AnimatedGIF decoder ───────────────────────────────────────────────────────
 static AnimatedGIF s_gif_decoder;
 static bool        s_gif_init_done = false;
-static File        s_gif_fh;          // file handle used by the callbacks
-static uint16_t    s_gif_line[240];   // one row of RGB565 pixels
+static File        s_gif_fh;
+static uint16_t    s_gif_line[240];
 
 static void* gif_open_cb(const char* path, int32_t* size) {
     s_gif_fh = LittleFS.open(path, "r");
@@ -20,9 +20,9 @@ static void* gif_open_cb(const char* path, int32_t* size) {
     *size = (int32_t)s_gif_fh.size();
     return (void*)&s_gif_fh;
 }
-static void    gif_close_cb(void*)                           { if (s_gif_fh) s_gif_fh.close(); }
+static void    gif_close_cb(void*)                                { if (s_gif_fh) s_gif_fh.close(); }
 static int32_t gif_read_cb (GIFFILE* , uint8_t* buf, int32_t len) { return (int32_t)s_gif_fh.read(buf, len); }
-static int32_t gif_seek_cb (GIFFILE* , int32_t pos)         { s_gif_fh.seek(pos); return pos; }
+static int32_t gif_seek_cb (GIFFILE* , int32_t pos)               { s_gif_fh.seek(pos); return pos; }
 
 static void gif_draw_cb(GIFDRAW* pDraw) {
     uint16_t* pal    = pDraw->pPalette;
@@ -32,28 +32,10 @@ static void gif_draw_cb(GIFDRAW* pDraw) {
     M5Dial.Display.pushImage(pDraw->iX, pDraw->iY + pDraw->y, w, 1, s_gif_line);
 }
 
-// FreeRTOS task handle for GIF playback (pinned to core 0)
-static TaskHandle_t s_gif_task_handle = nullptr;
-static bool s_showing_gif = false;
-
-static void gif_screensaver_task(void*) {
-    if (!s_gif_init_done) {
-        s_gif_decoder.begin();
-        s_gif_init_done = true;
-    }
-    while (true) {
-        if (LittleFS.exists(GIF_PATH) &&
-            s_gif_decoder.open(GIF_PATH, gif_open_cb, gif_close_cb, gif_read_cb, gif_seek_cb, gif_draw_cb)) {
-            int delay_ms = 0;
-            while (s_gif_decoder.playFrame(false, &delay_ms)) {
-                if (delay_ms > 0) vTaskDelay(pdMS_TO_TICKS(delay_ms));
-            }
-            s_gif_decoder.close();
-        } else {
-            vTaskDelay(pdMS_TO_TICKS(2000));
-        }
-    }
-}
+// GIF playback state (used from the main loop on core 1)
+static bool     s_showing_gif     = false;
+static bool     s_gif_file_open   = false;
+static uint32_t s_gif_next_frame  = 0;
 
 namespace {
   constexpr const char* PREF_NS = "energy";
@@ -90,10 +72,15 @@ namespace {
     prefs.end();
   }
 
-  void apply_active_state() {
-    if (s_gif_task_handle && s_showing_gif) {
-      vTaskSuspend(s_gif_task_handle);
+  void gif_close_if_open() {
+    if (s_gif_file_open) {
+      s_gif_decoder.close();
+      s_gif_file_open = false;
     }
+  }
+
+  void apply_active_state() {
+    gif_close_if_open();
     s_showing_gif = false;
     s_dimmed = false;
     M5Dial.Display.wakeup();
@@ -106,12 +93,11 @@ namespace {
     if (s_ss_gif_mode && LittleFS.exists(GIF_PATH)) {
       M5Dial.Display.wakeup();
       M5Dial.Display.setBrightness(s_active_brightness);
+      // Clear the LVGL frame so the GIF renders on a blank screen
+      M5Dial.Display.fillScreen(0);
+      gif_close_if_open();
+      s_gif_next_frame = millis();
       s_showing_gif = true;
-      if (s_gif_task_handle == nullptr) {
-        xTaskCreatePinnedToCore(gif_screensaver_task, "gif_ss", 8192, nullptr, 1, &s_gif_task_handle, 0);
-      } else {
-        vTaskResume(s_gif_task_handle);
-      }
     } else {
       s_showing_gif = false;
       M5Dial.Display.setBrightness(s_dim_brightness);
@@ -121,11 +107,8 @@ namespace {
 }
 
 void energy_save_init() {
-  // Stop GIF task before reloading settings
-  if (s_gif_task_handle && s_showing_gif) {
-    vTaskSuspend(s_gif_task_handle);
-    s_showing_gif = false;
-  }
+  gif_close_if_open();
+  s_showing_gif = false;
 
   Preferences prefs;
   if (prefs.begin(PREF_NS, true)) {
@@ -163,6 +146,39 @@ void energy_save_update() {
   const uint32_t now = millis();
   if ((uint32_t)(now - s_last_activity) >= s_timeout_ms) {
     apply_dimmed_state();
+  }
+}
+
+void energy_save_gif_tick() {
+  if (!s_showing_gif) return;
+
+  uint32_t now = millis();
+
+  if (!s_gif_file_open) {
+    if (!LittleFS.exists(GIF_PATH)) return;
+    if (!s_gif_init_done) {
+      s_gif_decoder.begin();
+      s_gif_init_done = true;
+    }
+    if (!s_gif_decoder.open(GIF_PATH, gif_open_cb, gif_close_cb,
+                             gif_read_cb, gif_seek_cb, gif_draw_cb)) {
+      return;
+    }
+    s_gif_file_open = true;
+    s_gif_next_frame = now;
+  }
+
+  // Not yet time for the next frame
+  if ((int32_t)(now - s_gif_next_frame) < 0) return;
+
+  int delay_ms = 0;
+  if (s_gif_decoder.playFrame(false, &delay_ms)) {
+    s_gif_next_frame = now + (uint32_t)(delay_ms > 0 ? delay_ms : 10);
+  } else {
+    // End of animation – close and let it re-open on the next tick (loop)
+    s_gif_decoder.close();
+    s_gif_file_open = false;
+    s_gif_next_frame = now;
   }
 }
 
@@ -283,10 +299,7 @@ bool energy_save_has_gif() {
 
 void energy_save_notify_gif_changed() {
   if (s_showing_gif && !LittleFS.exists(GIF_PATH)) {
-    // GIF was deleted while screensaver is active – fall back to dim mode
-    if (s_gif_task_handle) {
-      vTaskSuspend(s_gif_task_handle);
-    }
+    gif_close_if_open();
     s_showing_gif = false;
     M5Dial.Display.setBrightness(s_dim_brightness);
     M5Dial.Display.sleep();
