@@ -217,18 +217,26 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
         <div class="modal-fg"><label class="modal-lbl">Dim brightness (0–255)</label><div class="es-row"><input type="range" class="es-rng" id="cfg-es-db" min="0" max="255" value="10" oninput="document.getElementById('cfg-es-dbv').textContent=this.value"><span class="es-val" id="cfg-es-dbv">10</span></div></div>
         <div class="modal-fg"><label class="modal-lbl">Normal brightness (10–255)</label><div class="es-row"><input type="range" class="es-rng" id="cfg-es-ab" min="10" max="255" value="128" oninput="document.getElementById('cfg-es-abv').textContent=this.value"><span class="es-val" id="cfg-es-abv">128</span></div></div>
         <div class="modal-fg">
-          <div style="display:flex;align-items:center;justify-content:space-between">
-            <label class="modal-lbl" style="margin:0">&#127916; Play GIF on inactivity</label>
-            <label class="es-sw"><input type="checkbox" id="cfg-ss-gif"><span class="es-sl"></span></label>
+          <label class="modal-lbl">After-dim mode</label>
+          <select class="modal-inp" id="cfg-ss-mode" onchange="onSsModeChange()">
+            <option value="0">Dim only (stay dimmed)</option>
+            <option value="1">Dim then disable</option>
+            <option value="2">&#127916; GIF screensaver</option>
+          </select>
+        </div>
+        <div class="modal-fg" id="cfg-off-row" style="display:none">
+          <label class="modal-lbl">Disable display after dim (seconds, 0 = never)</label>
+          <input type="number" class="modal-inp" id="cfg-es-off" min="0" max="3600" value="0">
+        </div>
+        <div id="ss-gif-section" style="display:none">
+          <div class="modal-fg">
+            <div id="ss-gif-st" style="color:#666666;font-size:11px;margin-bottom:6px">No GIF uploaded</div>
+            <input type="file" id="ss-gif-file" accept=".gif,image/gif" class="modal-inp" style="padding:7px;cursor:pointer">
           </div>
-        </div>
-        <div class="modal-fg">
-          <div id="ss-gif-st" style="color:#666666;font-size:11px;margin-bottom:6px">No GIF uploaded</div>
-          <input type="file" id="ss-gif-file" accept=".gif,image/gif" class="modal-inp" style="padding:7px;cursor:pointer">
-        </div>
-        <div class="modal-row">
-          <button class="btn-s prim" onclick="uploadGif()">&#8679; Upload GIF</button>
-          <button class="btn-restart" onclick="deleteGif()">&#10007; Delete GIF</button>
+          <div class="modal-row">
+            <button class="btn-s prim" onclick="uploadGif()">&#8679; Upload GIF</button>
+            <button class="btn-restart" onclick="deleteGif()">&#10007; Delete GIF</button>
+          </div>
         </div>
         <button class="btn-s" onclick="saveEnergy()">&#9889; Save energy settings</button>
       </div>
@@ -331,11 +339,12 @@ function openSettings(){
     document.getElementById('modal-st').textContent='';
     if(e.enabled!==undefined)document.getElementById('cfg-es-en').checked=!!e.enabled;
     if(e.timeout_s!==undefined)document.getElementById('cfg-es-to').value=e.timeout_s;
+    if(e.off_timeout_s!==undefined)document.getElementById('cfg-es-off').value=e.off_timeout_s;
     if(e.dim_br!==undefined){document.getElementById('cfg-es-db').value=e.dim_br;document.getElementById('cfg-es-dbv').textContent=e.dim_br;}
     if(e.active_br!==undefined){document.getElementById('cfg-es-ab').value=e.active_br;document.getElementById('cfg-es-abv').textContent=e.active_br;}
-    if(ss.gif_mode!==undefined)document.getElementById('cfg-ss-gif').checked=!!ss.gif_mode;
+    if(e.ss_mode!==undefined){document.getElementById('cfg-ss-mode').value=e.ss_mode;onSsModeChange();}
     var ssst=document.getElementById('ss-gif-st');
-    if(ssst){if(ss.has_gif){ssst.textContent='GIF: hochgeladen \u2713';ssst.style.color='#aaaaaa';}else{ssst.textContent='Kein GIF hochgeladen';ssst.style.color='#666666';}}
+    if(ssst){if(ss.has_gif){ssst.textContent='GIF: uploaded \u2713';ssst.style.color='#aaaaaa';}else{ssst.textContent='No GIF uploaded';ssst.style.color='#666666';}}
     if(fc.bg!==undefined){
       document.getElementById('fw-bg').value='#'+fc.bg;
       document.getElementById('fw-surface').value='#'+fc.surface;
@@ -616,15 +625,21 @@ function st(msg,color){
   if(color==='#aaaaaa')stTimer=setTimeout(function(){el.style.opacity='0';},2200);
 }
 
+function onSsModeChange(){
+  var m=parseInt(document.getElementById('cfg-ss-mode').value);
+  document.getElementById('cfg-off-row').style.display=m===1?'':'none';
+  document.getElementById('ss-gif-section').style.display=m===2?'':'none';
+}
 async function saveEnergy(){
   var en=document.getElementById('cfg-es-en').checked?'1':'0';
   var to=parseInt(document.getElementById('cfg-es-to').value)||30;
+  var off=parseInt(document.getElementById('cfg-es-off').value)||0;
   var db=parseInt(document.getElementById('cfg-es-db').value)||10;
   var ab=parseInt(document.getElementById('cfg-es-ab').value)||128;
-  var gm=document.getElementById('cfg-ss-gif').checked?'1':'0';
+  var sm=parseInt(document.getElementById('cfg-ss-mode').value)||0;
   mst('Saving...');
   try{
-    var r=await fetch('/api/energy',{method:'POST',body:new URLSearchParams({enabled:en,timeout_s:to,dim_br:db,active_br:ab,gif_mode:gm})});
+    var r=await fetch('/api/energy',{method:'POST',body:new URLSearchParams({enabled:en,timeout_s:to,off_timeout_s:off,dim_br:db,active_br:ab,ss_mode:sm})});
     var j=await r.json();
     if(j.ok)mst('Energy settings saved!','ok');
     else mst('Error: '+(j.err||'?'),'err');
@@ -805,16 +820,19 @@ static void handle_api_restart_bootloader() {
 static void handle_api_energy_get() {
     Preferences prefs;
     prefs.begin("energy", true);
-    bool     enabled   = prefs.getBool("enabled",   true);
-    uint32_t timeout_s = prefs.getUInt("timeout_s", ENERGY_SAVE_TIMEOUT_DEFAULT);
-    uint8_t  dim_br    = prefs.getUInt("dim_br",    ENERGY_SAVE_DIM_BRIGHTNESS);
-    uint8_t  active_br = prefs.getUInt("active_br", ENERGY_SAVE_ACTIVE_BRIGHTNESS);
+    bool     enabled     = prefs.getBool("enabled",     true);
+    uint32_t timeout_s   = prefs.getUInt("timeout_s",   ENERGY_SAVE_TIMEOUT_DEFAULT);
+    uint32_t off_timeout = prefs.getUInt("off_timeout",  0);
+    uint8_t  dim_br      = prefs.getUInt("dim_br",      ENERGY_SAVE_DIM_BRIGHTNESS);
+    uint8_t  active_br   = prefs.getUInt("active_br",   ENERGY_SAVE_ACTIVE_BRIGHTNESS);
+    uint8_t  ss_mode     = (uint8_t)constrain((int)prefs.getUInt("ss_mode", 0), 0, 2);
     prefs.end();
-    String json = "{\"enabled\":"    + String(enabled ? "true" : "false") +
-                  ",\"timeout_s\":"  + String(timeout_s) +
-                  ",\"dim_br\":"     + String(dim_br) +
-                  ",\"active_br\":"  + String(active_br) +
-                  ",\"gif_mode\":"   + String(energy_save_screensaver_gif_mode() ? "true" : "false") + "}";
+    String json = "{\"enabled\":"       + String(enabled ? "true" : "false") +
+                  ",\"timeout_s\":"     + String(timeout_s) +
+                  ",\"off_timeout_s\":" + String(off_timeout) +
+                  ",\"dim_br\":"        + String(dim_br) +
+                  ",\"active_br\":"     + String(active_br) +
+                  ",\"ss_mode\":"       + String(ss_mode) + "}";
     server.send(200, "application/json", json);
 }
 
@@ -824,20 +842,22 @@ static void handle_api_energy_post() {
     if (server.hasArg("enabled"))
         prefs.putBool("enabled", server.arg("enabled") == "1");
     if (server.hasArg("timeout_s")) {
-        int t = server.arg("timeout_s").toInt();
-        if (t < 5)   t = 5;
-        if (t > 3600) t = 3600;
+        int t = constrain(server.arg("timeout_s").toInt(), 5, 3600);
         prefs.putUInt("timeout_s", (uint32_t)t);
     }
+    if (server.hasArg("off_timeout_s")) {
+        int t = constrain(server.arg("off_timeout_s").toInt(), 0, 3600);
+        prefs.putUInt("off_timeout", (uint32_t)t);
+    }
     if (server.hasArg("dim_br"))
-        prefs.putUInt("dim_br", (uint32_t)constrain(server.arg("dim_br").toInt(), 0, 255));
+        prefs.putUInt("dim_br",    (uint32_t)constrain(server.arg("dim_br").toInt(),    0, 255));
     if (server.hasArg("active_br"))
         prefs.putUInt("active_br", (uint32_t)constrain(server.arg("active_br").toInt(), 10, 255));
-    if (server.hasArg("gif_mode"))
-        prefs.putBool("ss_gif", server.arg("gif_mode") == "1");
+    if (server.hasArg("ss_mode"))
+        prefs.putUInt("ss_mode",   (uint32_t)constrain(server.arg("ss_mode").toInt(),   0, 2));
     prefs.end();
 
-    energy_save_init();   // Apply new settings immediately
+    energy_save_init();
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -925,11 +945,9 @@ static void handle_api_webcolors_reset() {
 }
 
 static void handle_api_screensaver_get() {
-    bool has_gif  = LittleFS.exists("/screensaver.gif");
-    bool gif_mode = energy_save_screensaver_gif_mode();
+    bool has_gif = LittleFS.exists("/screensaver.gif");
     server.send(200, "application/json",
-        "{\"has_gif\":"  + String(has_gif  ? "true" : "false") +
-        ",\"gif_mode\":" + String(gif_mode ? "true" : "false") + "}");
+        "{\"has_gif\":" + String(has_gif ? "true" : "false") + "}");
 }
 
 static File s_upload_file;
