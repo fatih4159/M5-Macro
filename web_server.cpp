@@ -262,7 +262,10 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
           <div class="clr-row"><span class="clr-lbl">Dim text</span><input type="color" class="clr-inp" id="web-dim" value="#888888"></div>
           <div class="clr-row"><span class="clr-lbl">Accent</span><input type="color" class="clr-inp" id="web-accent" value="#888888"></div>
         </div>
-        <button class="btn-s" onclick="saveWebColors()">&#9632; Save web colors</button>
+        <div class="modal-row">
+          <button class="btn-s" style="flex:1" onclick="saveWebColors()">&#9632; Save web colors</button>
+          <button class="btn-restart" onclick="resetWebColors()">&#8635; Reset</button>
+        </div>
       </div>
     </div>
     <div class="s-sect s-danger">
@@ -516,6 +519,26 @@ async function saveWebColors(){
     var j=await r.json();
     if(j.ok){applyWebColors(vals);mst('Web colors saved!','ok');}
     else mst('Error: '+(j.err||'?'),'err');
+  }catch(e){mst('Connection error','err');}
+}
+
+async function resetWebColors(){
+  if(!confirm('Reset web UI colors to defaults?'))return;
+  mst('Resetting...');
+  try{
+    var r=await fetch('/api/webcolors/reset',{method:'POST'});
+    var j=await r.json();
+    if(j.ok){
+      var defs={bg:'0A0A0A',surface:'111111',border:'222222',text:'E0E0E0',dim:'888888',accent:'888888'};
+      applyWebColors(defs);
+      document.getElementById('web-bg').value='#0a0a0a';
+      document.getElementById('web-surface').value='#111111';
+      document.getElementById('web-border').value='#222222';
+      document.getElementById('web-text').value='#e0e0e0';
+      document.getElementById('web-dim').value='#888888';
+      document.getElementById('web-accent').value='#888888';
+      mst('Colors reset to defaults!','ok');
+    }else mst('Error: '+(j.err||'?'),'err');
   }catch(e){mst('Connection error','err');}
 }
 
@@ -893,6 +916,14 @@ static void handle_api_webcolors_post() {
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
+static void handle_api_webcolors_reset() {
+    Preferences prefs;
+    prefs.begin("webclr", false);
+    prefs.clear();
+    prefs.end();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
 static void handle_api_screensaver_get() {
     bool has_gif  = LittleFS.exists("/screensaver.gif");
     bool gif_mode = energy_save_screensaver_gif_mode();
@@ -958,6 +989,7 @@ void web_server_init() {
     server.on("/api/colors",             HTTP_POST, handle_api_colors_post);
     server.on("/api/webcolors",          HTTP_GET,  handle_api_webcolors_get);
     server.on("/api/webcolors",          HTTP_POST, handle_api_webcolors_post);
+    server.on("/api/webcolors/reset",    HTTP_POST, handle_api_webcolors_reset);
     server.on("/api/screensaver",        HTTP_GET,  handle_api_screensaver_get);
     server.on("/api/screensaver/upload", HTTP_POST, handle_screensaver_upload_done, handle_screensaver_upload);
     server.on("/api/screensaver/delete", HTTP_POST, handle_api_screensaver_delete);
