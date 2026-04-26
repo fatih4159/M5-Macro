@@ -1,4 +1,5 @@
 #include "lvgl_driver.h"
+#include "lvgl_littlefs.h"
 #include "config.h"
 #include <M5Dial.h>
 
@@ -59,4 +60,7 @@ void lvgl_driver_init() {
     touch_drv.type    = LV_INDEV_TYPE_POINTER;
     touch_drv.read_cb = touch_read;
     lv_indev_drv_register(&touch_drv);
+
+    // Register LittleFS as LVGL drive 'S' (needed for lv_gif file loading)
+    lvgl_littlefs_init();
 }
