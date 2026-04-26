@@ -4,75 +4,15 @@
 #include <Preferences.h>
 #include <LittleFS.h>
 #include <lvgl.h>
-#include <AnimatedGIF.h>
 
-static const char* GIF_PATH = "/screensaver.gif";
+static const char* GIF_PATH    = "/screensaver.gif";
+static const char* GIF_SRC     = "S:/screensaver.gif";  // LVGL drive 'S'
 
-// ── AnimatedGIF decoder ───────────────────────────────────────────────────────
-static AnimatedGIF s_gif_decoder;
-static File        s_gif_fh;
+// ── LVGL GIF widget state ─────────────────────────────────────────────────────
+static lv_obj_t* s_gif_overlay = nullptr;  // full-screen black backdrop
+static lv_obj_t* s_gif_obj     = nullptr;  // lv_gif widget
 
-// Line buffer sized for full display width (destination after scaling)
-static uint16_t    s_gif_line[240];
-
-// Scale/offset computed once per GIF open
-static float   s_gif_scale = 1.0f;
-static int     s_gif_off_x = 0;
-static int     s_gif_off_y = 0;
-
-static void* gif_open_cb(const char* path, int32_t* size) {
-    s_gif_fh = LittleFS.open(path, "r");
-    if (!s_gif_fh) return nullptr;
-    *size = (int32_t)s_gif_fh.size();
-    return (void*)&s_gif_fh;
-}
-static void    gif_close_cb(void*)                                { if (s_gif_fh) s_gif_fh.close(); }
-static int32_t gif_read_cb (GIFFILE* , uint8_t* buf, int32_t len) { return (int32_t)s_gif_fh.read(buf, len); }
-static int32_t gif_seek_cb (GIFFILE* , int32_t pos)               { s_gif_fh.seek(pos); return pos; }
-
-static void gif_draw_cb(GIFDRAW* pDraw) {
-    uint16_t* pal    = pDraw->pPalette;
-    uint8_t*  pixels = pDraw->pPixels;
-    int       src_w  = pDraw->iWidth;
-    int       src_y  = pDraw->iY + pDraw->y;
-
-    if (s_gif_scale == 1.0f && s_gif_off_x == 0 && s_gif_off_y == 0) {
-        // Fast path: no scaling needed
-        int w = (src_w > 240) ? 240 : src_w;
-        for (int i = 0; i < w; i++) s_gif_line[i] = pal[pixels[i]];
-        M5Dial.Display.pushImage(pDraw->iX, src_y, w, 1, s_gif_line);
-        return;
-    }
-
-    // Scaled path: nearest-neighbour, maintain aspect ratio
-    int dst_x = s_gif_off_x + (int)(pDraw->iX * s_gif_scale);
-    int dst_w = (int)(src_w * s_gif_scale + 0.5f);
-    if (dst_w < 1) dst_w = 1;
-    if (dst_x < 0) { dst_w += dst_x; dst_x = 0; }
-    if (dst_x + dst_w > 240) dst_w = 240 - dst_x;
-    if (dst_w <= 0) return;
-
-    // Build the scaled scanline
-    for (int dx = 0; dx < dst_w; dx++) {
-        int sx = (int)(dx / s_gif_scale);
-        if (sx >= src_w) sx = src_w - 1;
-        s_gif_line[dx] = pal[pixels[sx]];
-    }
-
-    // Push the scanline for every destination row this source row maps to
-    int dst_y_lo = s_gif_off_y + (int)(src_y * s_gif_scale);
-    int dst_y_hi = s_gif_off_y + (int)((src_y + 1) * s_gif_scale);
-    if (dst_y_hi <= dst_y_lo) dst_y_hi = dst_y_lo + 1;
-    for (int dy = dst_y_lo; dy < dst_y_hi; dy++) {
-        if (dy < 0 || dy >= 240) continue;
-        M5Dial.Display.pushImage(dst_x, dy, dst_w, 1, s_gif_line);
-    }
-}
-
-// GIF playback state (used from the main loop on core 1)
-static bool     s_showing_gif    = false;
-static bool     s_gif_file_open  = false;
-static uint32_t s_gif_next_frame = 0;
+static bool s_showing_gif = false;
 
 namespace {
   constexpr const char* PREF_NS       = "energy";
@@ -83,18 +23,16 @@ namespace {
   constexpr const char* KEY_ACTIVE_BR = "active_br";
   constexpr const char* KEY_SS_MODE   = "ss_mode";
 
-  bool            s_enabled        = true;
-  uint32_t        s_dim_timeout_ms = (uint32_t)ENERGY_SAVE_TIMEOUT_DEFAULT * 1000UL;
-  uint32_t        s_off_timeout_ms = 0;   // 0 = never turn off
-  uint8_t         s_dim_brightness = ENERGY_SAVE_DIM_BRIGHTNESS;
+  bool            s_enabled           = true;
+  uint32_t        s_dim_timeout_ms    = (uint32_t)ENERGY_SAVE_TIMEOUT_DEFAULT * 1000UL;
+  uint32_t        s_off_timeout_ms    = 0;
+  uint8_t         s_dim_brightness    = ENERGY_SAVE_DIM_BRIGHTNESS;
   uint8_t         s_active_brightness = ENERGY_SAVE_ACTIVE_BRIGHTNESS;
-  uint32_t        s_last_activity  = 0;
-  uint32_t        s_dim_start_ms   = 0;
-  bool            s_dimmed         = false;
-  bool            s_display_off    = false;
-  ScreensaverMode s_ss_mode        = SS_MODE_DIM_ONLY;
-
-  uint8_t clamp_brightness(uint8_t v) { return v; }
+  uint32_t        s_last_activity     = 0;
+  uint32_t        s_dim_start_ms      = 0;
+  bool            s_dimmed            = false;
+  bool            s_display_off       = false;
+  ScreensaverMode s_ss_mode           = SS_MODE_DIM_ONLY;
 
   void save_preferences() {
     Preferences prefs;
@@ -108,64 +46,113 @@ namespace {
     prefs.end();
   }
 
-  void gif_close_if_open() {
-    if (s_gif_file_open) {
-      s_gif_decoder.close();
-      s_gif_file_open = false;
-    }
+  // ── GIF widget helpers ──────────────────────────────────────────────────────
+
+  // Read GIF canvas dimensions directly from the file header (6 bytes magic +
+  // 2-byte LE width + 2-byte LE height in the Logical Screen Descriptor).
+  static void read_gif_size(uint16_t& w, uint16_t& h) {
+    w = 0; h = 0;
+    File f = LittleFS.open(GIF_PATH, "r");
+    if (!f || f.size() < 10) { if (f) f.close(); return; }
+    uint8_t buf[10];
+    f.read(buf, 10);
+    f.close();
+    w = (uint16_t)(buf[6] | (buf[7] << 8));
+    h = (uint16_t)(buf[8] | (buf[9] << 8));
   }
 
+  static void destroy_gif_widget() {
+    if (s_gif_overlay) {
+      lv_obj_del(s_gif_overlay);  // deletes children (s_gif_obj) automatically
+      s_gif_overlay = nullptr;
+      s_gif_obj     = nullptr;
+    }
+    s_showing_gif = false;
+  }
+
+  static void create_gif_widget() {
+    // Read GIF canvas size to compute zoom-to-fit
+    uint16_t gw = 0, gh = 0;
+    read_gif_size(gw, gh);
+    if (gw == 0) gw = 240;
+    if (gh == 0) gh = 240;
+
+    // Full-screen black backdrop (covers the LVGL UI behind the GIF)
+    s_gif_overlay = lv_obj_create(lv_scr_act());
+    lv_obj_remove_style_all(s_gif_overlay);
+    lv_obj_set_size(s_gif_overlay, 240, 240);
+    lv_obj_set_pos(s_gif_overlay, 0, 0);
+    lv_obj_set_style_bg_color(s_gif_overlay, lv_color_black(), 0);
+    lv_obj_set_style_bg_opa(s_gif_overlay, LV_OPA_COVER, 0);
+    lv_obj_clear_flag(s_gif_overlay, LV_OBJ_FLAG_SCROLLABLE);
+
+    // GIF widget
+    s_gif_obj = lv_gif_create(s_gif_overlay);
+    lv_gif_set_src(s_gif_obj, GIF_SRC);
+
+    // Scale uniformly to fit 240×240, preserve aspect ratio (letterbox/pillarbox)
+    float scale = (float)240 / gw;
+    if ((float)240 / gh < scale) scale = (float)240 / gh;
+    uint16_t zoom = (uint16_t)(scale * 256.0f + 0.5f);
+    if (zoom < 1) zoom = 1;
+
+    lv_img_set_pivot(s_gif_obj, 0, 0);  // zoom from top-left
+    lv_img_set_zoom(s_gif_obj, zoom);
+
+    // Center the scaled GIF inside the 240×240 overlay
+    int xoff = (int)((240.0f - gw * scale) * 0.5f + 0.5f);
+    int yoff = (int)((240.0f - gh * scale) * 0.5f + 0.5f);
+    lv_obj_set_pos(s_gif_obj, xoff, yoff);
+
+    s_showing_gif = true;
+  }
+
+  // ── Display state helpers ───────────────────────────────────────────────────
+
   void apply_active_state() {
-    gif_close_if_open();
-    s_showing_gif  = false;
-    s_dimmed       = false;
-    s_display_off  = false;
+    destroy_gif_widget();
+    s_dimmed      = false;
+    s_display_off = false;
     M5Dial.Display.wakeup();
     M5Dial.Display.setBrightness(s_active_brightness);
     lv_obj_invalidate(lv_scr_act());
   }
 
   void apply_off_state() {
-    gif_close_if_open();
-    s_showing_gif = false;
+    destroy_gif_widget();
     s_display_off = true;
     M5Dial.Display.setBrightness(0);
     M5Dial.Display.sleep();
   }
 
   void apply_dimmed_state() {
-    s_dimmed      = true;
-    s_display_off = false;
+    s_dimmed       = true;
+    s_display_off  = false;
     s_dim_start_ms = millis();
 
     if (s_ss_mode == SS_MODE_GIF && LittleFS.exists(GIF_PATH)) {
       M5Dial.Display.wakeup();
       M5Dial.Display.setBrightness(s_active_brightness);
-      M5Dial.Display.fillScreen(0);
-      gif_close_if_open();
-      s_gif_next_frame = millis();
-      s_showing_gif = true;
+      create_gif_widget();
     } else {
-      s_showing_gif = false;
+      destroy_gif_widget();
+      // Just lower brightness — do NOT call sleep() here, that blanks the panel
       M5Dial.Display.setBrightness(s_dim_brightness);
-      // Don't call sleep() here — that blanks the panel completely.
-      // sleep() is only called in apply_off_state() for full turn-off.
     }
   }
 }
 
 void energy_save_init() {
-  gif_close_if_open();
-  s_showing_gif = false;
+  destroy_gif_widget();
 
   Preferences prefs;
   if (prefs.begin(PREF_NS, true)) {
-    s_enabled         = prefs.getBool(KEY_ENABLED, true);
-    s_dim_timeout_ms  = (uint32_t)prefs.getUInt(KEY_TIMEOUT, ENERGY_SAVE_TIMEOUT_DEFAULT) * 1000UL;
-    s_off_timeout_ms  = (uint32_t)prefs.getUInt(KEY_OFF_TO,  0) * 1000UL;
-    s_dim_brightness  = (uint8_t)prefs.getUInt(KEY_DIM_BR,    ENERGY_SAVE_DIM_BRIGHTNESS);
+    s_enabled           = prefs.getBool(KEY_ENABLED, true);
+    s_dim_timeout_ms    = (uint32_t)prefs.getUInt(KEY_TIMEOUT, ENERGY_SAVE_TIMEOUT_DEFAULT) * 1000UL;
+    s_off_timeout_ms    = (uint32_t)prefs.getUInt(KEY_OFF_TO,  0) * 1000UL;
+    s_dim_brightness    = (uint8_t)prefs.getUInt(KEY_DIM_BR,    ENERGY_SAVE_DIM_BRIGHTNESS);
     s_active_brightness = (uint8_t)prefs.getUInt(KEY_ACTIVE_BR, ENERGY_SAVE_ACTIVE_BRIGHTNESS);
-    s_ss_mode         = (ScreensaverMode)constrain((int)prefs.getUInt(KEY_SS_MODE, 0), 0, 2);
+    s_ss_mode           = (ScreensaverMode)constrain((int)prefs.getUInt(KEY_SS_MODE, 0), 0, 2);
     prefs.end();
   }
 
@@ -199,49 +186,8 @@ void energy_save_update() {
   }
 }
 
-void energy_save_gif_tick() {
-  if (!s_showing_gif) return;
-
-  uint32_t now = millis();
-
-  if (!s_gif_file_open) {
-    if (!LittleFS.exists(GIF_PATH)) return;
-    // Always call begin() before open() to reset decoder state
-    s_gif_decoder.begin();
-    if (!s_gif_decoder.open(GIF_PATH, gif_open_cb, gif_close_cb,
-                             gif_read_cb, gif_seek_cb, gif_draw_cb)) {
-      return;
-    }
-    // Compute scale to fit 240×240 while preserving aspect ratio
-    int cw = s_gif_decoder.getCanvasWidth();
-    int ch = s_gif_decoder.getCanvasHeight();
-    if (cw > 0 && ch > 0) {
-      float sx = 240.0f / cw;
-      float sy = 240.0f / ch;
-      s_gif_scale = (sx < sy) ? sx : sy;
-      s_gif_off_x = (240 - (int)(cw * s_gif_scale + 0.5f)) / 2;
-      s_gif_off_y = (240 - (int)(ch * s_gif_scale + 0.5f)) / 2;
-    } else {
-      s_gif_scale = 1.0f;
-      s_gif_off_x = 0;
-      s_gif_off_y = 0;
-    }
-    s_gif_file_open  = true;
-    s_gif_next_frame = now;
-  }
-
-  if ((int32_t)(now - s_gif_next_frame) < 0) return;
-
-  int delay_ms = 0;
-  if (s_gif_decoder.playFrame(false, &delay_ms)) {
-    s_gif_next_frame = now + (uint32_t)(delay_ms > 0 ? delay_ms : 10);
-  } else {
-    // End of animation – close and loop
-    s_gif_decoder.close();
-    s_gif_file_open = false;
-    s_gif_next_frame = now;
-  }
-}
+// No-op: GIF animation is driven by lv_timer_handler() via the lv_gif widget
+void energy_save_gif_tick() {}
 
 void energy_save_activity() {
   s_last_activity = millis();
@@ -271,9 +217,8 @@ bool energy_save_is_enabled() { return s_enabled; }
 void energy_save_set_enabled(bool enabled) {
   s_enabled = enabled;
   if (!s_enabled) {
+    destroy_gif_widget();
     s_dimmed = false;
-    gif_close_if_open();
-    s_showing_gif = false;
     M5Dial.Display.wakeup();
     M5Dial.Display.setBrightness(s_active_brightness);
   } else {
@@ -298,7 +243,7 @@ void energy_save_set_off_timeout_seconds(uint32_t timeout_s) {
 uint32_t energy_save_get_off_timeout_seconds() { return s_off_timeout_ms / 1000UL; }
 
 void energy_save_set_dim_brightness(uint8_t brightness) {
-  s_dim_brightness = clamp_brightness(brightness);
+  s_dim_brightness = brightness;
   if (s_dimmed && !s_showing_gif && !s_display_off)
     M5Dial.Display.setBrightness(s_dim_brightness);
   save_preferences();
@@ -306,7 +251,7 @@ void energy_save_set_dim_brightness(uint8_t brightness) {
 uint8_t energy_save_get_dim_brightness() { return s_dim_brightness; }
 
 void energy_save_set_active_brightness(uint8_t brightness) {
-  s_active_brightness = clamp_brightness(brightness);
+  s_active_brightness = brightness;
   if (!s_dimmed) M5Dial.Display.setBrightness(s_active_brightness);
   save_preferences();
 }
@@ -324,9 +269,7 @@ bool energy_save_has_gif()        { return LittleFS.exists(GIF_PATH); }
 
 void energy_save_notify_gif_changed() {
   if (s_showing_gif && !LittleFS.exists(GIF_PATH)) {
-    gif_close_if_open();
-    s_showing_gif = false;
+    destroy_gif_widget();
     M5Dial.Display.setBrightness(s_dim_brightness);
-    M5Dial.Display.sleep();
   }
 }

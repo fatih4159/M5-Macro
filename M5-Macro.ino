@@ -141,12 +141,8 @@ void loop() {
     // Process encoder button
     handle_button();
 
-    // Render LVGL or advance GIF screensaver frame (mutually exclusive)
-    if (energy_save_is_showing_gif()) {
-        energy_save_gif_tick();
-    } else {
-        lv_timer_handler();
-    }
+    // LVGL renders everything – including the lv_gif screensaver widget
+    lv_timer_handler();
 
     // Handle incoming HTTP requests (non-blocking)
     web_server_handle();
