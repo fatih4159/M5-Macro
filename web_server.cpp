@@ -1,5 +1,6 @@
 #include "web_server.h"
 #include "macro_store.h"
+#include "sys_log.h"
 #include "ui.h"
 #include "config.h"
 #include "energy_save.h"
@@ -237,6 +238,9 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
             <button class="btn-s prim" onclick="uploadGif()">&#8679; Upload GIF</button>
             <button class="btn-restart" onclick="deleteGif()">&#10007; Delete GIF</button>
           </div>
+          <div class="modal-row" style="margin-top:6px">
+            <button class="btn-restart" style="flex:1" onclick="previewGif()">&#9654; Preview GIF now</button>
+          </div>
         </div>
         <button class="btn-s" onclick="saveEnergy()">&#9889; Save energy settings</button>
       </div>
@@ -284,6 +288,20 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
         <div class="modal-row">
           <button class="btn-restart" onclick="doRestart()">&#8635; Restart</button>
           <button class="btn-boot" onclick="doBootloader()">&#9660; Bootloader</button>
+        </div>
+      </div>
+    </div>
+    <div class="s-sect">
+      <button class="s-hdr" id="sh-log" onclick="togSectLog()">
+        <span>&#128203;</span><span class="s-ttl">System Log</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body closed" id="sb-log">
+        <div class="modal-row" style="margin-bottom:8px">
+          <button class="btn-s" style="flex:1" onclick="loadLog()">&#8635; Refresh</button>
+          <button class="btn-restart" onclick="clearLog()">&#10007; Clear</button>
+        </div>
+        <div id="log-box" style="background:#050505;border:1px solid #1a1a1a;border-radius:4px;padding:8px;max-height:220px;overflow-y:auto;font-size:10px;line-height:1.7;color:#555555;font-family:'Courier New',monospace">
+          <span style="color:#333333">Open to load log</span>
         </div>
       </div>
     </div>
@@ -670,6 +688,49 @@ async function deleteGif(){
   }catch(e){mst('Fehler.');}
 }
 
+async function previewGif(){
+  mst('Activating GIF screensaver...');
+  try{
+    var r=await fetch('/api/screensaver/preview',{method:'POST'});
+    var j=await r.json();
+    if(j.ok)mst('Screensaver activated!','ok');
+    else mst('Error: '+(j.err||'?'),'err');
+  }catch(e){mst('Connection error','err');}
+}
+
+function togSectLog(){
+  var b=document.getElementById('sb-log');
+  var wasOpen=!b.classList.contains('closed');
+  togSect('sb-log','sh-log');
+  if(!wasOpen)loadLog();
+}
+
+async function loadLog(){
+  var box=document.getElementById('log-box');
+  if(!box)return;
+  box.innerHTML='<span style="color:#333333">Loading...</span>';
+  try{
+    var r=await fetch('/api/log');
+    var j=await r.json();
+    if(!j.length){box.innerHTML='<span style="color:#333333">No log entries yet</span>';return;}
+    box.innerHTML=j.map(function(e){
+      var ts=(e.ts/1000).toFixed(1);
+      var msg=e.msg||'';
+      var isErr=msg.toUpperCase().indexOf('FAIL')>=0||msg.toUpperCase().indexOf('ERROR')>=0||msg.indexOf('ERR:')>=0;
+      var col=isErr?'#cc5555':'#666666';
+      return'<div style="color:'+col+'"><span style="color:#2a2a2a;margin-right:5px">'+ts+'s</span>'+esc(msg)+'</div>';
+    }).join('');
+    box.scrollTop=box.scrollHeight;
+  }catch(e){box.innerHTML='<span style="color:#cc5555">Failed to load log</span>';}
+}
+
+async function clearLog(){
+  try{
+    await fetch('/api/log/clear',{method:'POST'});
+    loadLog();
+  }catch(e){mst('Error clearing log','err');}
+}
+
 document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();}});
 load();
 </script>
@@ -953,7 +1014,16 @@ static void handle_api_screensaver_get() {
 static File s_upload_file;
 
 static void handle_screensaver_upload_done() {
-    bool ok = LittleFS.exists("/screensaver.gif");
+    File f = LittleFS.open("/screensaver.gif", "r");
+    bool ok = f && f.size() > 0;
+    size_t sz = ok ? f.size() : 0;
+    if (f) f.close();
+    if (ok) {
+        sys_log("Web: GIF uploaded ok (%u bytes)", (unsigned)sz);
+        energy_save_notify_gif_changed();
+    } else {
+        sys_log("Web: GIF upload FAILED (file missing or empty)");
+    }
     server.send(200, "application/json",
         ok ? "{\"ok\":true}" : "{\"ok\":false,\"err\":\"Upload failed\"}");
 }
@@ -972,6 +1042,21 @@ static void handle_screensaver_upload() {
 static void handle_api_screensaver_delete() {
     LittleFS.remove("/screensaver.gif");
     energy_save_notify_gif_changed();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handle_api_log_get() {
+    server.send(200, "application/json", sys_log_get_json());
+}
+
+static void handle_api_log_clear() {
+    sys_log_clear();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handle_api_screensaver_preview() {
+    sys_log("Web: screensaver preview requested");
+    energy_save_force_sleep();
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
@@ -1008,9 +1093,12 @@ void web_server_init() {
     server.on("/api/webcolors",          HTTP_GET,  handle_api_webcolors_get);
     server.on("/api/webcolors",          HTTP_POST, handle_api_webcolors_post);
     server.on("/api/webcolors/reset",    HTTP_POST, handle_api_webcolors_reset);
-    server.on("/api/screensaver",        HTTP_GET,  handle_api_screensaver_get);
-    server.on("/api/screensaver/upload", HTTP_POST, handle_screensaver_upload_done, handle_screensaver_upload);
-    server.on("/api/screensaver/delete", HTTP_POST, handle_api_screensaver_delete);
+    server.on("/api/screensaver",         HTTP_GET,  handle_api_screensaver_get);
+    server.on("/api/screensaver/upload",  HTTP_POST, handle_screensaver_upload_done, handle_screensaver_upload);
+    server.on("/api/screensaver/delete",  HTTP_POST, handle_api_screensaver_delete);
+    server.on("/api/screensaver/preview", HTTP_POST, handle_api_screensaver_preview);
+    server.on("/api/log",                 HTTP_GET,  handle_api_log_get);
+    server.on("/api/log/clear",           HTTP_POST, handle_api_log_clear);
     server.onNotFound(handle_not_found);
 
     server.begin();

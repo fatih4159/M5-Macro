@@ -1,4 +1,5 @@
 #include "macro_store.h"
+#include "sys_log.h"
 #include <LittleFS.h>
 
 // ── File paths ────────────────────────────────────────────────────────────────
@@ -158,12 +159,15 @@ void macro_store_init() {
     if (!LittleFS.begin(true, "/lfs", 10, "littlefs")) {
         // Fallback: try default_8MB-scheme partition label
         if (!LittleFS.begin(true, "/lfs", 10, "spiffs")) {
+            sys_log("FS: LittleFS mount FAILED, using RAM defaults");
             load_defaults_ram();
             s_fs_ok = false;
             return;
         }
     }
     s_fs_ok = true;
+    sys_log("FS: LittleFS mounted ok, total=%u used=%u",
+            (unsigned)LittleFS.totalBytes(), (unsigned)LittleFS.usedBytes());
 
     // Create directory if needed
     if (!LittleFS.exists(MACRO_DIR)) {
@@ -173,8 +177,10 @@ void macro_store_init() {
     // Load macros – if none exist, write defaults
     load_all_from_fs();
     if (s_count == 0) {
+        sys_log("FS: no macros found, writing defaults");
         write_defaults();
     }
+    sys_log("FS: loaded %d macros", s_count);
 }
 
 int macro_store_count() {
