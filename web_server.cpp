@@ -3,6 +3,7 @@
 #include "ui.h"
 #include "config.h"
 #include "energy_save.h"
+#include "logger.h"
 #include <WiFi.h>
 #include <WebServer.h>
 #include <Preferences.h>
@@ -274,6 +275,22 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
           <button class="btn-s" style="flex:1" onclick="saveWebColors()">&#9632; Save web colors</button>
           <button class="btn-restart" onclick="resetWebColors()">&#8635; Reset</button>
         </div>
+      </div>
+    </div>
+    <div class="s-sect">
+      <button class="s-hdr" id="sh-log" onclick="togSect('sb-log','sh-log')">
+        <span>&#128220;</span><span class="s-ttl">System Log</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body closed" id="sb-log">
+        <div class="modal-row" style="margin-bottom:6px">
+          <button class="btn-s" style="flex:1" onclick="logRefresh()">&#8635; Refresh</button>
+          <button class="btn-s" style="flex:1" onclick="logClear()">&#10005; Clear</button>
+          <button class="btn-s" style="flex:1" onclick="logForceScreensaver()">&#9654; Force SS</button>
+        </div>
+        <label style="display:flex;align-items:center;gap:7px;color:#555555;font-size:10px;text-transform:uppercase;letter-spacing:.5px;margin-bottom:6px;cursor:pointer">
+          <input type="checkbox" id="log-auto" onchange="logAutoToggle()"> Auto-refresh (3s)
+        </label>
+        <pre id="log-pre" style="background:#060606;color:#999999;padding:8px;border-radius:4px;font-size:9px;line-height:1.5;max-height:280px;overflow-y:auto;margin:0;white-space:pre-wrap;word-break:break-all;border:1px solid #1a1a1a">— no entries —</pre>
       </div>
     </div>
     <div class="s-sect s-danger">
@@ -672,6 +689,34 @@ async function deleteGif(){
 
 document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();}});
 load();
+
+var _logTimer=null;
+var _logLvl=['INFO','WARN','ERR!'];
+var _logClr=['#6a9955','#cccc55','#cc5555'];
+function logRefresh(){
+  fetch('/api/log').then(function(r){return r.json();}).then(function(arr){
+    var pre=document.getElementById('log-pre');
+    if(!arr||arr.length===0){pre.textContent='— no entries —';pre.style.color='#444444';return;}
+    pre.style.color='#999999';
+    pre.innerHTML=arr.map(function(e){
+      var t=String(e.ts).padStart(8,' ');
+      var lbl='<span style="color:'+_logClr[e.l||0]+'">'+_logLvl[e.l||0]+'</span>';
+      return t+'ms '+lbl+' '+esc(e.m);
+    }).join('\n');
+    pre.scrollTop=pre.scrollHeight;
+  }).catch(function(){document.getElementById('log-pre').textContent='Error fetching log.';});
+}
+function logClear(){
+  fetch('/api/log/clear',{method:'POST'}).then(logRefresh);
+}
+function logForceScreensaver(){
+  fetch('/api/force-screensaver',{method:'POST'});
+  mst('Screensaver triggered – interact to wake up','ok');
+}
+function logAutoToggle(){
+  clearInterval(_logTimer);_logTimer=null;
+  if(document.getElementById('log-auto').checked)_logTimer=setInterval(logRefresh,3000);
+}
 </script>
 </body>
 </html>)rawliteral";
@@ -975,6 +1020,20 @@ static void handle_api_screensaver_delete() {
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
+static void handle_api_log_get() {
+    server.send(200, "application/json", logger_get_json());
+}
+
+static void handle_api_log_clear() {
+    logger_clear();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handle_api_force_screensaver() {
+    energy_save_force_sleep();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
 static void handle_not_found() {
     server.send(404, "text/plain", "Not found");
 }
@@ -1011,6 +1070,9 @@ void web_server_init() {
     server.on("/api/screensaver",        HTTP_GET,  handle_api_screensaver_get);
     server.on("/api/screensaver/upload", HTTP_POST, handle_screensaver_upload_done, handle_screensaver_upload);
     server.on("/api/screensaver/delete", HTTP_POST, handle_api_screensaver_delete);
+    server.on("/api/log",                HTTP_GET,  handle_api_log_get);
+    server.on("/api/log/clear",          HTTP_POST, handle_api_log_clear);
+    server.on("/api/force-screensaver",  HTTP_POST, handle_api_force_screensaver);
     server.onNotFound(handle_not_found);
 
     server.begin();

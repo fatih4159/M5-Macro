@@ -30,6 +30,7 @@ USBHIDKeyboard Keyboard;
 
 // ── Project files ───────────────────────────────────────────────────────────
 #include "config.h"
+#include "logger.h"
 #include "lvgl_driver.h"
 #include "macro_store.h"
 #include "macro_executor.h"
@@ -128,6 +129,7 @@ void setup() {
 
     // 7. Start web editor (WiFi AP + HTTP server)
     web_server_init();
+    LOG_I("BOOT", "ready – IP %s", web_server_ip().c_str());
 }
 
 // ── Main loop ────────────────────────────────────────────────────────────────
