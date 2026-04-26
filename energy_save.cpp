@@ -1,4 +1,5 @@
 #include "energy_save.h"
+#include "logger.h"
 #include "config.h"
 #include <M5Dial.h>
 #include <Preferences.h>
@@ -67,6 +68,7 @@ namespace {
       lv_obj_del(s_gif_overlay);  // deletes children (s_gif_obj) automatically
       s_gif_overlay = nullptr;
       s_gif_obj     = nullptr;
+      LOG_I("GIF", "overlay destroyed");
     }
     // Free after lv_obj_del so the GIF decoder is fully torn down first
     free(s_gif_data);
@@ -78,25 +80,33 @@ namespace {
     // Read GIF canvas size to compute zoom-to-fit
     uint16_t gw = 0, gh = 0;
     read_gif_size(gw, gh);
+    LOG_I("GIF", "header dims: %ux%u", gw, gh);
     if (gw == 0) gw = 240;
     if (gh == 0) gh = 240;
 
     // Load the entire GIF into RAM.
     // lv_gif_set_src only opens a file path when LV_USE_FS_IF_ANY is set
-    // (i.e. a built-in LVGL FS backend is compiled in). Our custom 'S' driver
-    // does not set that flag, so the file-path branch is silently skipped.
-    // Passing an lv_img_dsc_t* (LV_IMG_SRC_VARIABLE) always works.
+    // (a built-in LVGL FS backend). Our custom 'S' driver does not set that
+    // flag so the file-path branch is silently skipped. Passing an
+    // lv_img_dsc_t* (LV_IMG_SRC_VARIABLE) always works.
     File f = LittleFS.open(GIF_PATH, "r");
-    if (!f) return;
+    if (!f) { LOG_E("GIF", "LittleFS.open failed"); return; }
     size_t fsize = f.size();
+    LOG_I("GIF", "file open OK, size=%u", (unsigned)fsize);
 
     // Prefer PSRAM; fall back to SRAM
     s_gif_data = (uint8_t*)heap_caps_malloc(fsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
     if (!s_gif_data) s_gif_data = (uint8_t*)malloc(fsize);
-    if (!s_gif_data) { f.close(); return; }
+    if (!s_gif_data) {
+      f.close();
+      LOG_E("GIF", "malloc failed for %u bytes", (unsigned)fsize);
+      return;
+    }
+    LOG_I("GIF", "malloc OK (%s)", heap_caps_get_allocated_size(s_gif_data) ? "PSRAM" : "SRAM");
 
-    f.read(s_gif_data, fsize);
+    size_t bread = f.read(s_gif_data, fsize);
     f.close();
+    LOG_I("GIF", "read %u/%u bytes", (unsigned)bread, (unsigned)fsize);
 
     s_gif_dsc            = {};
     s_gif_dsc.header.cf  = LV_IMG_CF_RAW;
@@ -118,6 +128,21 @@ namespace {
     s_gif_obj = lv_gif_create(s_gif_overlay);
     lv_gif_set_src(s_gif_obj, &s_gif_dsc);
 
+    // lv_gif_set_src sets the object size to the GIF dimensions on success.
+    // If it failed (GIF decoder returned NULL), the size stays at 0.
+    lv_coord_t obj_w = lv_obj_get_width(s_gif_obj);
+    if (obj_w <= 0) {
+      LOG_E("GIF", "lv_gif_set_src failed (obj_w=%d) – falling back to dim", (int)obj_w);
+      destroy_gif_widget();
+      M5Dial.Display.setBrightness(s_dim_brightness);
+      return;
+    }
+    LOG_I("GIF", "lv_gif_set_src OK, obj_w=%d", (int)obj_w);
+
+    // Force first frame into the image buffer immediately rather than waiting
+    // for the internal 10 ms timer so there is no blank flash on first show.
+    lv_gif_restart(s_gif_obj);
+
     // Scale uniformly to fit 240×240, preserve aspect ratio (letterbox/pillarbox)
     float scale = (float)240 / gw;
     if ((float)240 / gh < scale) scale = (float)240 / gh;
@@ -132,6 +157,7 @@ namespace {
     int yoff = (int)((240.0f - gh * scale) * 0.5f + 0.5f);
     lv_obj_set_pos(s_gif_obj, xoff, yoff);
 
+    LOG_I("GIF", "widget ready zoom=%u pos=(%d,%d)", zoom, xoff, yoff);
     s_showing_gif = true;
   }
 
@@ -158,7 +184,10 @@ namespace {
     s_display_off  = false;
     s_dim_start_ms = millis();
 
-    if (s_ss_mode == SS_MODE_GIF && LittleFS.exists(GIF_PATH)) {
+    bool has_gif = LittleFS.exists(GIF_PATH);
+    LOG_I("ENERGY", "dimmed: ss_mode=%d has_gif=%d", s_ss_mode, has_gif);
+
+    if (s_ss_mode == SS_MODE_GIF && has_gif) {
       M5Dial.Display.wakeup();
       M5Dial.Display.setBrightness(s_active_brightness);
       create_gif_widget();
@@ -183,6 +212,8 @@ void energy_save_init() {
     s_ss_mode           = (ScreensaverMode)constrain((int)prefs.getUInt(KEY_SS_MODE, 0), 0, 2);
     prefs.end();
   }
+  LOG_I("ENERGY", "init: en=%d to=%us mode=%d dim_br=%d act_br=%d",
+        s_enabled, s_dim_timeout_ms/1000, s_ss_mode, s_dim_brightness, s_active_brightness);
 
   if (s_dim_timeout_ms == 0)
     s_dim_timeout_ms = (uint32_t)ENERGY_SAVE_TIMEOUT_DEFAULT * 1000UL;
