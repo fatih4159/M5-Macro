@@ -6,11 +6,12 @@
 #include <lvgl.h>
 
 static const char* GIF_PATH    = "/screensaver.gif";
-static const char* GIF_SRC     = "S:/screensaver.gif";  // LVGL drive 'S'
 
 // ── LVGL GIF widget state ─────────────────────────────────────────────────────
-static lv_obj_t* s_gif_overlay = nullptr;  // full-screen black backdrop
-static lv_obj_t* s_gif_obj     = nullptr;  // lv_gif widget
+static lv_obj_t*   s_gif_overlay = nullptr;  // full-screen black backdrop
+static lv_obj_t*   s_gif_obj     = nullptr;  // lv_gif widget
+static uint8_t*    s_gif_data    = nullptr;  // raw GIF bytes in RAM
+static lv_img_dsc_t s_gif_dsc   = {};       // descriptor wrapping s_gif_data
 
 static bool s_showing_gif = false;
 
@@ -67,6 +68,9 @@ namespace {
       s_gif_overlay = nullptr;
       s_gif_obj     = nullptr;
     }
+    // Free after lv_obj_del so the GIF decoder is fully torn down first
+    free(s_gif_data);
+    s_gif_data = nullptr;
     s_showing_gif = false;
   }
 
@@ -77,6 +81,30 @@ namespace {
     if (gw == 0) gw = 240;
     if (gh == 0) gh = 240;
 
+    // Load the entire GIF into RAM.
+    // lv_gif_set_src only opens a file path when LV_USE_FS_IF_ANY is set
+    // (i.e. a built-in LVGL FS backend is compiled in). Our custom 'S' driver
+    // does not set that flag, so the file-path branch is silently skipped.
+    // Passing an lv_img_dsc_t* (LV_IMG_SRC_VARIABLE) always works.
+    File f = LittleFS.open(GIF_PATH, "r");
+    if (!f) return;
+    size_t fsize = f.size();
+
+    // Prefer PSRAM; fall back to SRAM
+    s_gif_data = (uint8_t*)heap_caps_malloc(fsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
+    if (!s_gif_data) s_gif_data = (uint8_t*)malloc(fsize);
+    if (!s_gif_data) { f.close(); return; }
+
+    f.read(s_gif_data, fsize);
+    f.close();
+
+    s_gif_dsc            = {};
+    s_gif_dsc.header.cf  = LV_IMG_CF_RAW;
+    s_gif_dsc.header.w   = gw;
+    s_gif_dsc.header.h   = gh;
+    s_gif_dsc.data_size  = fsize;
+    s_gif_dsc.data       = s_gif_data;
+
     // Full-screen black backdrop (covers the LVGL UI behind the GIF)
     s_gif_overlay = lv_obj_create(lv_scr_act());
     lv_obj_remove_style_all(s_gif_overlay);
@@ -86,9 +114,9 @@ namespace {
     lv_obj_set_style_bg_opa(s_gif_overlay, LV_OPA_COVER, 0);
     lv_obj_clear_flag(s_gif_overlay, LV_OBJ_FLAG_SCROLLABLE);
 
-    // GIF widget
+    // GIF widget – use in-RAM descriptor so lv_gif_set_src always decodes it
     s_gif_obj = lv_gif_create(s_gif_overlay);
-    lv_gif_set_src(s_gif_obj, GIF_SRC);
+    lv_gif_set_src(s_gif_obj, &s_gif_dsc);
 
     // Scale uniformly to fit 240×240, preserve aspect ratio (letterbox/pillarbox)
     float scale = (float)240 / gw;
