@@ -30,6 +30,7 @@ USBHIDKeyboard Keyboard;
 
 // ── Project files ───────────────────────────────────────────────────────────
 #include "config.h"
+#include "sys_log.h"
 #include "lvgl_driver.h"
 #include "macro_store.h"
 #include "macro_executor.h"
@@ -96,12 +97,15 @@ static void handle_button() {
 
 // ── Setup ───────────────────────────────────────────────────────────────────
 void setup() {
+    sys_log("m5Macro: boot start, heap=%u", (unsigned)ESP.getFreeHeap());
+
     // 1. Initialize USB FIRST (ESP32-S3 TinyUSB)
     USB.productName("m5Macro Keyboard");
     USB.manufacturerName("m5Stack");
     USB.begin();
     Keyboard.begin();
     delay(500); // Wait for USB enumeration
+    sys_log("m5Macro: USB init ok");
 
     // 2. Initialize M5Dial hardware
     //    Parameters: config, enable encoder, disable RFID
@@ -112,22 +116,26 @@ void setup() {
 
     // Set encoder reference position
     M5Dial.Encoder.readAndReset();
+    sys_log("m5Macro: M5Dial init ok");
 
     // 3. Initialize LVGL
     lv_init();
     lvgl_driver_init();
+    sys_log("m5Macro: LVGL init ok");
 
     // 4. Initialize macros (hardcoded, no filesystem needed)
     macro_store_init();
 
     // 5. Build UI
     ui_init();
+    sys_log("m5Macro: UI init ok");
 
     // 6. Initialize energy-saving mode (also sets display brightness)
     energy_save_init();
 
     // 7. Start web editor (WiFi AP + HTTP server)
     web_server_init();
+    sys_log("m5Macro: web server started, heap=%u", (unsigned)ESP.getFreeHeap());
 }
 
 // ── Main loop ────────────────────────────────────────────────────────────────

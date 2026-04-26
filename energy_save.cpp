@@ -1,4 +1,5 @@
 #include "energy_save.h"
+#include "sys_log.h"
 #include "config.h"
 #include <M5Dial.h>
 #include <Preferences.h>
@@ -64,6 +65,7 @@ namespace {
 
   static void destroy_gif_widget() {
     if (s_gif_overlay) {
+      sys_log("GIF: destroying widget");
       lv_obj_del(s_gif_overlay);  // deletes children (s_gif_obj) automatically
       s_gif_overlay = nullptr;
       s_gif_obj     = nullptr;
@@ -75,9 +77,12 @@ namespace {
   }
 
   static void create_gif_widget() {
+    sys_log("GIF: create_gif_widget start");
+
     // Read GIF canvas size to compute zoom-to-fit
     uint16_t gw = 0, gh = 0;
     read_gif_size(gw, gh);
+    sys_log("GIF: header size %ux%u", gw, gh);
     if (gw == 0) gw = 240;
     if (gh == 0) gh = 240;
 
@@ -87,16 +92,37 @@ namespace {
     // does not set that flag, so the file-path branch is silently skipped.
     // Passing an lv_img_dsc_t* (LV_IMG_SRC_VARIABLE) always works.
     File f = LittleFS.open(GIF_PATH, "r");
-    if (!f) return;
+    if (!f) {
+      sys_log("GIF: ERROR - failed to open %s", GIF_PATH);
+      return;
+    }
     size_t fsize = f.size();
+    sys_log("GIF: file opened, %u bytes", (unsigned)fsize);
+
+    if (fsize == 0) {
+      f.close();
+      sys_log("GIF: ERROR - file is empty");
+      return;
+    }
 
     // Prefer PSRAM; fall back to SRAM
     s_gif_data = (uint8_t*)heap_caps_malloc(fsize, MALLOC_CAP_SPIRAM | MALLOC_CAP_8BIT);
-    if (!s_gif_data) s_gif_data = (uint8_t*)malloc(fsize);
-    if (!s_gif_data) { f.close(); return; }
+    if (s_gif_data) {
+      sys_log("GIF: allocated %u B in PSRAM", (unsigned)fsize);
+    } else {
+      s_gif_data = (uint8_t*)malloc(fsize);
+      if (s_gif_data) {
+        sys_log("GIF: allocated %u B in SRAM (no PSRAM)", (unsigned)fsize);
+      } else {
+        f.close();
+        sys_log("GIF: ERROR - malloc(%u) FAILED (heap free: %u)", (unsigned)fsize, (unsigned)ESP.getFreeHeap());
+        return;
+      }
+    }
 
-    f.read(s_gif_data, fsize);
+    size_t nread = f.read(s_gif_data, fsize);
     f.close();
+    sys_log("GIF: read %u/%u bytes", (unsigned)nread, (unsigned)fsize);
 
     s_gif_dsc            = {};
     s_gif_dsc.header.cf  = LV_IMG_CF_RAW;
@@ -133,6 +159,7 @@ namespace {
     lv_obj_set_pos(s_gif_obj, xoff, yoff);
 
     s_showing_gif = true;
+    sys_log("GIF: widget created ok, zoom=%u pos=(%d,%d)", zoom, xoff, yoff);
   }
 
   // ── Display state helpers ───────────────────────────────────────────────────
@@ -158,11 +185,17 @@ namespace {
     s_display_off  = false;
     s_dim_start_ms = millis();
 
-    if (s_ss_mode == SS_MODE_GIF && LittleFS.exists(GIF_PATH)) {
+    bool gif_exists = LittleFS.exists(GIF_PATH);
+    sys_log("ES: dimming (mode=%d gif_exists=%d)", (int)s_ss_mode, (int)gif_exists);
+
+    if (s_ss_mode == SS_MODE_GIF && gif_exists) {
       M5Dial.Display.wakeup();
       M5Dial.Display.setBrightness(s_active_brightness);
       create_gif_widget();
     } else {
+      if (s_ss_mode == SS_MODE_GIF && !gif_exists) {
+        sys_log("ES: GIF mode but no file found at %s", GIF_PATH);
+      }
       destroy_gif_widget();
       // Just lower brightness — do NOT call sleep() here, that blanks the panel
       M5Dial.Display.setBrightness(s_dim_brightness);
@@ -186,6 +219,11 @@ void energy_save_init() {
 
   if (s_dim_timeout_ms == 0)
     s_dim_timeout_ms = (uint32_t)ENERGY_SAVE_TIMEOUT_DEFAULT * 1000UL;
+
+  sys_log("ES: init enabled=%d mode=%d timeout=%us heap=%u",
+          (int)s_enabled, (int)s_ss_mode,
+          (unsigned)(s_dim_timeout_ms / 1000UL),
+          (unsigned)ESP.getFreeHeap());
 
   s_last_activity = millis();
 
@@ -296,8 +334,28 @@ bool energy_save_is_showing_gif() { return s_showing_gif; }
 bool energy_save_has_gif()        { return LittleFS.exists(GIF_PATH); }
 
 void energy_save_notify_gif_changed() {
-  if (s_showing_gif && !LittleFS.exists(GIF_PATH)) {
+  bool exists = LittleFS.exists(GIF_PATH);
+  sys_log("ES: gif_changed notify exists=%d showing=%d dimmed=%d mode=%d",
+          (int)exists, (int)s_showing_gif, (int)s_dimmed, (int)s_ss_mode);
+
+  if (!exists) {
+    // GIF was deleted
+    if (s_showing_gif) {
+      destroy_gif_widget();
+      M5Dial.Display.setBrightness(s_dim_brightness);
+    }
+    return;
+  }
+
+  // GIF was uploaded / replaced
+  if (s_showing_gif) {
+    // Reload widget with fresh data
     destroy_gif_widget();
-    M5Dial.Display.setBrightness(s_dim_brightness);
+    create_gif_widget();
+  } else if (s_dimmed && s_ss_mode == SS_MODE_GIF) {
+    // Was dimmed in GIF mode but widget not yet created (e.g. file didn't exist before)
+    M5Dial.Display.wakeup();
+    M5Dial.Display.setBrightness(s_active_brightness);
+    create_gif_widget();
   }
 }
