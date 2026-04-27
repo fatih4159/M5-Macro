@@ -11,7 +11,7 @@
 
 /* Farbe */
 #define LV_COLOR_DEPTH     16
-#define LV_COLOR_16_SWAP   0  /* Pflicht fuer M5GFX/M5Stack Displays */
+/* LV_COLOR_16_SWAP wurde in LVGL v9 entfernt – Byte-Swap via setSwapBytes(true) in M5GFX */
 
 /* Speicher */
 #define LV_MEM_SIZE        (48U * 1024U)
@@ -50,8 +50,8 @@
 /* Gruppen (fuer Encoder-Navigation) */
 #define LV_USE_GROUP      1
 
-/* Animation */
-#define LV_USE_ANIMATION  1
+/* Animation (LV_USE_ANIMATION wurde in LVGL v9 zu LV_USE_ANIM umbenannt) */
+#define LV_USE_ANIM       1
 
 /* Log (ausgeschaltet fuer Produktion) */
 #define LV_USE_LOG        0
