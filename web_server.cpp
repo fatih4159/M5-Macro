@@ -1040,6 +1040,31 @@ static void handle_not_found() {
 
 // ── Public API ────────────────────────────────────────────────────────────────
 
+static bool s_wifi_enabled = true;
+
+bool web_server_wifi_enabled() {
+    return s_wifi_enabled;
+}
+
+void web_server_wifi_toggle() {
+    if (s_wifi_enabled) {
+        server.stop();
+        WiFi.softAPdisconnect(true);
+        WiFi.mode(WIFI_OFF);
+        s_wifi_enabled = false;
+    } else {
+        Preferences prefs;
+        prefs.begin("wifi", true);
+        String ssid = prefs.getString("ssid", WIFI_AP_SSID);
+        String pass = prefs.getString("pass", WIFI_AP_PASS);
+        prefs.end();
+        WiFi.mode(WIFI_AP);
+        WiFi.softAP(ssid.c_str(), pass.c_str());
+        server.begin();
+        s_wifi_enabled = true;
+    }
+}
+
 void web_server_init() {
     // Read SSID and password from NVS (fallback: config.h constants)
     Preferences prefs;
