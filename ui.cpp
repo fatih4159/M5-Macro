@@ -27,6 +27,37 @@ static void load_colors() {
 static lv_obj_t* s_roller = nullptr;
 static int       s_count  = 0;
 
+// ── Gradient fade mask for roller ────────────────────────────────────────────
+static void generate_mask(lv_draw_buf_t* mask)
+{
+    lv_obj_t* canvas = lv_canvas_create(lv_scr_act());
+    lv_canvas_set_draw_buf(canvas, mask);
+    lv_canvas_fill_bg(canvas, lv_color_white(), LV_OPA_TRANSP);
+
+    lv_layer_t layer;
+    lv_canvas_init_layer(canvas, &layer);
+
+    lv_draw_rect_dsc_t rect_dsc;
+    lv_draw_rect_dsc_init(&rect_dsc);
+    rect_dsc.bg_grad.dir = LV_GRAD_DIR_VER;
+    rect_dsc.bg_grad.stops_count = 2;
+    rect_dsc.bg_grad.stops[0].color = lv_color_black();
+    rect_dsc.bg_grad.stops[0].opa   = LV_OPA_COVER;
+    rect_dsc.bg_grad.stops[1].color = lv_color_white();
+    rect_dsc.bg_grad.stops[1].opa   = LV_OPA_COVER;
+    lv_area_t a = {0, 0, (lv_coord_t)(mask->header.w - 1), (lv_coord_t)(mask->header.h / 2 - 10)};
+    lv_draw_rect(&layer, &rect_dsc, &a);
+
+    a.y1 = mask->header.h / 2 + 10;
+    a.y2 = mask->header.h - 1;
+    rect_dsc.bg_grad.stops[0].color = lv_color_white();
+    rect_dsc.bg_grad.stops[1].color = lv_color_black();
+    lv_draw_rect(&layer, &rect_dsc, &a);
+
+    lv_canvas_finish_layer(canvas, &layer);
+    lv_obj_delete(canvas);
+}
+
 // ── Macro roller (center) ────────────────────────────────────────────────────
 static void create_roller(lv_obj_t* parent) {
     // Build options string from macro store
@@ -66,6 +97,11 @@ static void create_roller(lv_obj_t* parent) {
     lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent),   LV_PART_SELECTED);
     lv_obj_set_style_border_width(s_roller, 1,                         LV_PART_SELECTED);
     lv_obj_set_style_border_opa  (s_roller, LV_OPA_50,                 LV_PART_SELECTED);
+
+    LV_DRAW_BUF_DEFINE_STATIC(mask, 230, 150, LV_COLOR_FORMAT_L8);
+    LV_DRAW_BUF_INIT_STATIC(mask);
+    generate_mask(&mask);
+    lv_obj_set_style_bitmap_mask_src(s_roller, &mask, 0);
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
