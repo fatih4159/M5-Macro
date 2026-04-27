@@ -1,6 +1,7 @@
 #include "ui.h"
 #include "macro_store.h"
 #include "config.h"
+#include "web_server.h"
 #include <Preferences.h>
 
 // ── Runtime color palette (loaded from NVS, defaults match original design) ──
@@ -24,8 +25,9 @@ static void load_colors() {
 }
 
 // ── Widget pointers (file scope) ─────────────────────────────────────────────
-static lv_obj_t* s_roller = nullptr;
-static int       s_count  = 0;
+static lv_obj_t* s_roller   = nullptr;
+static lv_obj_t* s_wifi_btn = nullptr;
+static int       s_count    = 0;
 
 // ── Gradient fade mask for roller ────────────────────────────────────────────
 static void generate_mask(lv_draw_buf_t* mask)
@@ -56,6 +58,36 @@ static void generate_mask(lv_draw_buf_t* mask)
 
     lv_canvas_finish_layer(canvas, &layer);
     lv_obj_delete(canvas);
+}
+
+// ── WiFi toggle button (top) ─────────────────────────────────────────────────
+static void update_wifi_btn_color() {
+    if (!s_wifi_btn) return;
+    lv_obj_t* icon = lv_obj_get_child(s_wifi_btn, 0);
+    bool en = web_server_wifi_enabled();
+    lv_obj_set_style_text_color(icon, en ? lv_color_hex(c_accent) : lv_color_hex(c_text_dim), 0);
+}
+
+static void wifi_btn_cb(lv_event_t* /*e*/) {
+    web_server_wifi_toggle();
+    update_wifi_btn_color();
+}
+
+static void create_wifi_button(lv_obj_t* parent) {
+    s_wifi_btn = lv_btn_create(parent);
+    lv_obj_set_size(s_wifi_btn, 36, 36);
+    lv_obj_align(s_wifi_btn, LV_ALIGN_TOP_MID, 0, 10);
+    lv_obj_set_style_radius(s_wifi_btn, LV_RADIUS_CIRCLE, 0);
+    lv_obj_set_style_bg_color(s_wifi_btn, lv_color_hex(c_sel_bg), 0);
+    lv_obj_set_style_bg_opa(s_wifi_btn, LV_OPA_COVER, 0);
+    lv_obj_set_style_border_width(s_wifi_btn, 0, 0);
+    lv_obj_set_style_shadow_width(s_wifi_btn, 0, 0);
+    lv_obj_add_event_cb(s_wifi_btn, wifi_btn_cb, LV_EVENT_CLICKED, nullptr);
+
+    lv_obj_t* icon = lv_label_create(s_wifi_btn);
+    lv_label_set_text(icon, LV_SYMBOL_WIFI);
+    lv_obj_set_style_text_color(icon, lv_color_hex(c_accent), 0);
+    lv_obj_center(icon);
 }
 
 // ── Macro roller (center) ────────────────────────────────────────────────────
@@ -114,6 +146,7 @@ void ui_init() {
     lv_obj_set_style_bg_color(scr, lv_color_hex(c_bg),    0);
     lv_obj_set_style_bg_opa  (scr, LV_OPA_COVER,            0);
 
+    create_wifi_button(scr);
     create_roller(scr);
 }
 
@@ -145,6 +178,10 @@ void ui_apply_colors() {
     lv_obj_set_style_bg_color   (s_roller, lv_color_hex(c_sel_bg),   LV_PART_SELECTED);
     lv_obj_set_style_text_color (s_roller, lv_color_hex(c_text),     LV_PART_SELECTED);
     lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent),  LV_PART_SELECTED);
+    if (s_wifi_btn) {
+        lv_obj_set_style_bg_color(s_wifi_btn, lv_color_hex(c_sel_bg), 0);
+        update_wifi_btn_color();
+    }
     lv_timer_handler();
 }
 
