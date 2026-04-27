@@ -116,6 +116,7 @@ void setup() {
 
     // 3. Initialize LVGL
     lv_init();
+    lv_tick_set_cb(millis);  // LVGL v9: runtime tick source (replaces LV_TICK_CUSTOM)
     lvgl_driver_init();
 
     // 4. Initialize macros (hardcoded, no filesystem needed)
