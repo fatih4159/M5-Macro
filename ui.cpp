@@ -97,11 +97,6 @@ static void create_roller(lv_obj_t* parent) {
     lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent),   LV_PART_SELECTED);
     lv_obj_set_style_border_width(s_roller, 1,                         LV_PART_SELECTED);
     lv_obj_set_style_border_opa  (s_roller, LV_OPA_50,                 LV_PART_SELECTED);
-
-    LV_DRAW_BUF_DEFINE_STATIC(mask, 230, 150, LV_COLOR_FORMAT_L8);
-    LV_DRAW_BUF_INIT_STATIC(mask);
-    generate_mask(&mask);
-    lv_obj_set_style_bitmap_mask_src(s_roller, &mask, 0);
 }
 
 // ── Public API ───────────────────────────────────────────────────────────────
