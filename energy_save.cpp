@@ -12,7 +12,7 @@ static const char* GIF_PATH    = "/screensaver.gif";
 static lv_obj_t*   s_gif_overlay = nullptr;  // full-screen black backdrop
 static lv_obj_t*   s_gif_obj     = nullptr;  // lv_gif widget
 static uint8_t*    s_gif_data    = nullptr;  // raw GIF bytes in RAM
-static lv_img_dsc_t s_gif_dsc   = {};       // descriptor wrapping s_gif_data
+static lv_image_dsc_t s_gif_dsc  = {};       // descriptor wrapping s_gif_data
 
 static bool s_showing_gif = false;
 
@@ -108,19 +108,20 @@ namespace {
     f.close();
     LOG_I("GIF", "read %u/%u bytes", (unsigned)bread, (unsigned)fsize);
 
-    s_gif_dsc            = {};
-    s_gif_dsc.header.cf  = LV_IMG_CF_RAW;
-    s_gif_dsc.header.w   = gw;
-    s_gif_dsc.header.h   = gh;
-    s_gif_dsc.data_size  = fsize;
-    s_gif_dsc.data       = s_gif_data;
+    s_gif_dsc              = {};
+    s_gif_dsc.header.magic = LV_IMAGE_HEADER_MAGIC;
+    s_gif_dsc.header.cf    = LV_COLOR_FORMAT_RAW;
+    s_gif_dsc.header.w     = gw;
+    s_gif_dsc.header.h     = gh;
+    s_gif_dsc.data_size    = fsize;
+    s_gif_dsc.data         = s_gif_data;
 
     // Full-screen black backdrop (covers the LVGL UI behind the GIF)
     s_gif_overlay = lv_obj_create(lv_scr_act());
     lv_obj_remove_style_all(s_gif_overlay);
     lv_obj_set_size(s_gif_overlay, 240, 240);
     lv_obj_set_pos(s_gif_overlay, 0, 0);
-    lv_obj_set_style_bg_color(s_gif_overlay, lv_color_black(), 0);
+    lv_obj_set_style_bg_color(s_gif_overlay, lv_color_hex(0x000000), 0);
     lv_obj_set_style_bg_opa(s_gif_overlay, LV_OPA_COVER, 0);
     lv_obj_clear_flag(s_gif_overlay, LV_OBJ_FLAG_SCROLLABLE);
 
@@ -130,7 +131,7 @@ namespace {
 
     // lv_gif_set_src sets the object size to the GIF dimensions on success.
     // If it failed (GIF decoder returned NULL), the size stays at 0.
-    lv_coord_t obj_w = lv_obj_get_width(s_gif_obj);
+    int32_t obj_w = lv_obj_get_width(s_gif_obj);
     if (obj_w <= 0) {
       LOG_E("GIF", "lv_gif_set_src failed (obj_w=%d) – falling back to dim", (int)obj_w);
       destroy_gif_widget();
@@ -149,8 +150,8 @@ namespace {
     uint16_t zoom = (uint16_t)(scale * 256.0f + 0.5f);
     if (zoom < 1) zoom = 1;
 
-    lv_img_set_pivot(s_gif_obj, 0, 0);  // zoom from top-left
-    lv_img_set_zoom(s_gif_obj, zoom);
+    lv_image_set_pivot(s_gif_obj, 0, 0);  // zoom from top-left
+    lv_image_set_scale(s_gif_obj, zoom);
 
     // Center the scaled GIF inside the 240×240 overlay
     int xoff = (int)((240.0f - gw * scale) * 0.5f + 0.5f);
