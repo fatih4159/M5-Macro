@@ -334,7 +334,7 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
 </div>
 <script>
 var macros=[],cur=-1,dirty=false,steps=[],stTimer=null;
-var KEYS=['ENTER','ESC','BACKSPACE','TAB','SPACE','DELETE','INSERT','UP','DOWN','LEFT','RIGHT','HOME','END','PGUP','PGDN','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','CAPSLOCK','PRINTSCREEN','SCROLLLOCK','PAUSE','NUMLOCK','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9'];
+var KEYS=['ENTER','ESC','WIN','BACKSPACE','TAB','SPACE','DELETE','INSERT','UP','DOWN','LEFT','RIGHT','HOME','END','PGUP','PGDN','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','CAPSLOCK','PRINTSCREEN','SCROLLLOCK','PAUSE','NUMLOCK','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9'];
 var MODS=['CTRL','SHIFT','ALT','WIN'];
 
 function esc(s){return(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');}

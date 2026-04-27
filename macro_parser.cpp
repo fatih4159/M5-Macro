@@ -30,6 +30,7 @@ static const KeyEntry kKeys[] = {
     { "RETURN",    0xB0 },
     { "ESC",       0xB1 },   // KEY_ESC
     { "ESCAPE",    0xB1 },
+    { "WIN",       0x83 },
     { "BACKSPACE", 0xB2 },
     { "TAB",       0xB3 },   // KEY_TAB
     { "SPACE",     0x20 },
