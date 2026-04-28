@@ -69,6 +69,8 @@ static void update_wifi_btn_color() {
     lv_obj_t* icon = lv_obj_get_child(s_wifi_btn, 0);
     bool en = web_server_wifi_enabled();
     lv_obj_set_style_text_color(icon, en ? lv_color_hex(c_accent) : lv_color_hex(c_text_dim), 0);
+    lv_obj_set_style_border_width(s_wifi_btn, en ? 2 : 0, 0);
+    lv_obj_set_style_border_color(s_wifi_btn, lv_color_white(), 0);
 }
 
 static void wifi_btn_cb(lv_event_t* /*e*/) {
@@ -89,8 +91,8 @@ static void create_wifi_button(lv_obj_t* parent) {
 
     lv_obj_t* icon = lv_label_create(s_wifi_btn);
     lv_label_set_text(icon, LV_SYMBOL_WIFI);
-    lv_obj_set_style_text_color(icon, lv_color_hex(c_accent), 0);
     lv_obj_center(icon);
+    update_wifi_btn_color();
 }
 
 // ── Bluetooth toggle button (top-right) ──────────────────────────────────────
@@ -99,6 +101,8 @@ static void update_ble_btn_color() {
     lv_obj_t* icon = lv_obj_get_child(s_ble_btn, 0);
     bool en = ble_keyboard_enabled();
     lv_obj_set_style_text_color(icon, en ? lv_color_hex(c_accent) : lv_color_hex(c_text_dim), 0);
+    lv_obj_set_style_border_width(s_ble_btn, en ? 2 : 0, 0);
+    lv_obj_set_style_border_color(s_ble_btn, lv_color_white(), 0);
 }
 
 static void ble_btn_cb(lv_event_t* /*e*/) {
@@ -125,8 +129,8 @@ static void create_ble_button(lv_obj_t* parent) {
 
     lv_obj_t* icon = lv_label_create(s_ble_btn);
     lv_label_set_text(icon, LV_SYMBOL_BLUETOOTH);
-    lv_obj_set_style_text_color(icon, lv_color_hex(c_text_dim), 0);
     lv_obj_center(icon);
+    update_ble_btn_color();
 }
 
 // ── Macro roller (center) ────────────────────────────────────────────────────
