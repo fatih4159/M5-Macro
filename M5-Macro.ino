@@ -34,6 +34,7 @@ USBHIDKeyboard Keyboard;
 #include "lvgl_driver.h"
 #include "macro_store.h"
 #include "macro_executor.h"
+#include "ble_keyboard_hid.h"
 #include "ui.h"
 #include "web_server.h"
 #include "energy_save.h"
@@ -130,6 +131,10 @@ void setup() {
 
     // 7. Start web editor (WiFi AP + HTTP server)
     web_server_init();
+
+    // 8. Prepare BLE keyboard (stays off until user enables via button)
+    ble_keyboard_init();
+
     LOG_I("BOOT", "ready – IP %s", web_server_ip().c_str());
 }
 

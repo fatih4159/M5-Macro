@@ -2,13 +2,21 @@
 #include "macro_store.h"
 #include "macro_parser.h"
 #include "config.h"
+#include "ble_keyboard_hid.h"
+
+static bool s_usb_enabled = true;
+static bool s_ble_output  = false;
+
+void macro_set_output_usb(bool enabled) { s_usb_enabled = enabled; }
+void macro_set_output_ble(bool enabled) { s_ble_output  = enabled; }
 
 // ── Execute single step ──────────────────────────────────────────────────────
 static void executeStep(const MacroStep& s) {
     switch (s.type) {
 
         case STEP_TEXT:
-            Keyboard.print(s.text);
+            if (s_usb_enabled) Keyboard.print(s.text);
+            if (s_ble_output)  ble_keyboard_print(s.text);
             delay(STEP_GAP_MS);
             break;
 
@@ -18,21 +26,27 @@ static void executeStep(const MacroStep& s) {
 
         case STEP_KEY:
             if (s.keycode != 0) {
-                Keyboard.press(s.keycode);
+                if (s_usb_enabled) Keyboard.press(s.keycode);
+                if (s_ble_output)  ble_keyboard_press(s.keycode);
                 delay(KEY_HOLD_MS);
-                Keyboard.releaseAll();
+                if (s_usb_enabled) Keyboard.releaseAll();
+                if (s_ble_output)  ble_keyboard_release_all();
                 delay(STEP_GAP_MS);
             }
             break;
 
         case STEP_COMBO:
-            // Press modifiers first
             for (int i = 0; i < s.mod_count; i++) {
-                Keyboard.press(s.modifiers[i]);
+                if (s_usb_enabled) Keyboard.press(s.modifiers[i]);
+                if (s_ble_output)  ble_keyboard_press(s.modifiers[i]);
             }
-            if (s.keycode != 0) Keyboard.press(s.keycode);
+            if (s.keycode != 0) {
+                if (s_usb_enabled) Keyboard.press(s.keycode);
+                if (s_ble_output)  ble_keyboard_press(s.keycode);
+            }
             delay(KEY_HOLD_MS);
-            Keyboard.releaseAll();
+            if (s_usb_enabled) Keyboard.releaseAll();
+            if (s_ble_output)  ble_keyboard_release_all();
             delay(STEP_GAP_MS);
             break;
     }
@@ -48,5 +62,6 @@ void macro_execute(int index) {
         executeStep(step);
     }
 
-    Keyboard.releaseAll(); // Safety release at end
+    if (s_usb_enabled) Keyboard.releaseAll();
+    if (s_ble_output)  ble_keyboard_release_all();
 }
