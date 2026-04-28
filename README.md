@@ -18,6 +18,7 @@ interface**, accessible from any browser.
 -   🖥 **Circular UI** -- smooth macro selection via LVGL roller widget
 -   🌐 **Web-Based Editor** -- create and edit macros from your browser
 -   📡 **Standalone WiFi AP** -- no router required
+-   🔵 **Bluetooth HID** -- execute macros wirelessly via BLE keyboard
 -   💾 **Persistent Storage** -- macros saved in LittleFS
 -   ⚙️ **Configurable** -- WiFi credentials editable via UI
 -   🔁 **Remote Restart** -- reboot or enter bootloader from browser
@@ -56,7 +57,8 @@ git clone https://github.com/<user>/m5Macro.git
 -   TinyUSB (ESP32 core)\
 -   LittleFS\
 -   Preferences\
--   WebServer
+-   WebServer\
+-   [ESP32-BLE-Keyboard](https://github.com/T-vK/ESP32-BLE-Keyboard) (BleKeyboard.h)
 
 ------------------------------------------------------------------------
 
