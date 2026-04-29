@@ -32,36 +32,7 @@ static lv_obj_t* s_wifi_btn = nullptr;
 static lv_obj_t* s_ble_btn  = nullptr;
 static int       s_count    = 0;
 
-// ── Gradient fade mask for roller ────────────────────────────────────────────
-static void generate_mask(lv_draw_buf_t* mask)
-{
-    lv_obj_t* canvas = lv_canvas_create(lv_scr_act());
-    lv_canvas_set_draw_buf(canvas, mask);
-    lv_canvas_fill_bg(canvas, lv_color_white(), LV_OPA_TRANSP);
 
-    lv_layer_t layer;
-    lv_canvas_init_layer(canvas, &layer);
-
-    lv_draw_rect_dsc_t rect_dsc;
-    lv_draw_rect_dsc_init(&rect_dsc);
-    rect_dsc.bg_grad.dir = LV_GRAD_DIR_VER;
-    rect_dsc.bg_grad.stops_count = 2;
-    rect_dsc.bg_grad.stops[0].color = lv_color_black();
-    rect_dsc.bg_grad.stops[0].opa   = LV_OPA_COVER;
-    rect_dsc.bg_grad.stops[1].color = lv_color_white();
-    rect_dsc.bg_grad.stops[1].opa   = LV_OPA_COVER;
-    lv_area_t a = {0, 0, (lv_coord_t)(mask->header.w - 1), (lv_coord_t)(mask->header.h / 2 - 10)};
-    lv_draw_rect(&layer, &rect_dsc, &a);
-
-    a.y1 = mask->header.h / 2 + 10;
-    a.y2 = mask->header.h - 1;
-    rect_dsc.bg_grad.stops[0].color = lv_color_white();
-    rect_dsc.bg_grad.stops[1].color = lv_color_black();
-    lv_draw_rect(&layer, &rect_dsc, &a);
-
-    lv_canvas_finish_layer(canvas, &layer);
-    lv_obj_delete(canvas);
-}
 
 // ── WiFi toggle button (top-left) ────────────────────────────────────────────
 static void update_wifi_btn_color() {
@@ -153,6 +124,7 @@ static void create_roller(lv_obj_t* parent) {
 
     lv_roller_set_visible_row_count(s_roller, 5);
     lv_obj_set_width(s_roller, 230);
+    lv_obj_set_height(s_roller, 150);
     lv_obj_align(s_roller, LV_ALIGN_CENTER, 0, 6);
 
     // Main style: dark background, dimmed text
