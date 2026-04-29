@@ -98,14 +98,18 @@ static void handle_button() {
 
 // ── Setup ───────────────────────────────────────────────────────────────────
 void setup() {
-    // 1. Initialize USB FIRST (ESP32-S3 TinyUSB)
+    // 1. Initialize BLE stack before USB so BLEDevice::init() never races
+    //    with active TinyUSB interrupt traffic (root cause of USB+BLE crash).
+    ble_keyboard_init();
+
+    // 2. Initialize USB (ESP32-S3 TinyUSB)
     USB.productName("m5Macro Keyboard");
     USB.manufacturerName("m5Stack");
     USB.begin();
     Keyboard.begin();
     delay(500); // Wait for USB enumeration
 
-    // 2. Initialize M5Dial hardware
+    // 3. Initialize M5Dial hardware
     //    Parameters: config, enable encoder, disable RFID
     auto cfg = M5.config();
     M5Dial.begin(cfg, true, false);
@@ -115,25 +119,22 @@ void setup() {
     // Set encoder reference position
     M5Dial.Encoder.readAndReset();
 
-    // 3. Initialize LVGL
+    // 4. Initialize LVGL
     lv_init();
     lv_tick_set_cb(millis);  // LVGL v9: runtime tick source (replaces LV_TICK_CUSTOM)
     lvgl_driver_init();
 
-    // 4. Initialize macros (hardcoded, no filesystem needed)
+    // 5. Initialize macros (hardcoded, no filesystem needed)
     macro_store_init();
 
-    // 5. Build UI
+    // 6. Build UI
     ui_init();
 
-    // 6. Initialize energy-saving mode (also sets display brightness)
+    // 7. Initialize energy-saving mode (also sets display brightness)
     energy_save_init();
 
-    // 7. Start web editor (WiFi AP + HTTP server)
+    // 8. Start web editor (WiFi AP + HTTP server)
     web_server_init();
-
-    // 8. Prepare BLE keyboard (stays off until user enables via button)
-    ble_keyboard_init();
 
     LOG_I("BOOT", "ready – IP %s", web_server_ip().c_str());
 }

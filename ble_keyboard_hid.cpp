@@ -5,18 +5,19 @@ static BleKeyboard s_ble_keyboard("m5Macro", "m5Stack", 100);
 static bool        s_enabled = false;
 
 void ble_keyboard_init() {
-    // BLE is off by default; user activates via UI button
+    // Initialize BLE stack once at boot, before USB starts, to prevent
+    // BLEDevice::init() from interfering with active TinyUSB interrupt traffic.
+    // enable/disable only control output routing, not the stack lifecycle.
+    s_ble_keyboard.begin();
 }
 
 void ble_keyboard_enable() {
     if (s_enabled) return;
-    s_ble_keyboard.begin();
     s_enabled = true;
 }
 
 void ble_keyboard_disable() {
     if (!s_enabled) return;
-    s_ble_keyboard.end();
     s_enabled = false;
 }
 
