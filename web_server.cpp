@@ -13,9 +13,11 @@
 
 // ── HTTP server instance ──────────────────────────────────────────────────────
 static WebServer server(WEB_SERVER_PORT);
+static bool s_routes_registered = false;
+static bool s_wifi_enabled = false;
 
 // ── Embedded HTML page ────────────────────────────────────────────────────────
-static const char HTML_PAGE[] = R"rawliteral(<!DOCTYPE html>
+static const char HTML_PAGE[] PROGMEM = R"rawliteral(<!DOCTYPE html>
 <html lang="en">
 <head>
 <meta charset="UTF-8">
@@ -86,14 +88,22 @@ h1{color:#ffffff;font-size:16px;letter-spacing:2px}
 .sb-x{display:none;background:none;border:none;color:#555555;font-size:18px;cursor:pointer;padding:0 4px;line-height:1}
 .sb-x:hover{color:#a0a0a0}
 .macro-list{flex:1;overflow-y:auto;padding:4px 4px 0;-webkit-overflow-scrolling:touch}
-.mi{padding:10px;border-radius:4px;cursor:pointer;color:#666666;font-size:12px;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;border-left:2px solid transparent;display:flex;align-items:center;gap:5px;min-height:44px;transition:background .1s,color .1s}
+.mi{padding:8px;border-radius:4px;color:#666666;font-size:12px;border-left:2px solid transparent;display:flex;align-items:center;gap:6px;min-height:44px;transition:background .1s,color .1s}
 .mi:hover{background:#151515;color:#aaaaaa}
 .mi.active{background:#1a1a1a;color:var(--clr-text);border-left-color:var(--clr-accent)}
 .mi-num{color:#333333;font-size:10px;min-width:14px;text-align:right;flex-shrink:0}
-.mi-name{overflow:hidden;text-overflow:ellipsis;flex:1}
+.mi-main{display:flex;align-items:center;gap:6px;min-width:0;flex:1;cursor:pointer}
+.mi-main:hover .mi-name{color:#e0e0e0}
+.mi-name{overflow:hidden;text-overflow:ellipsis;flex:1;white-space:nowrap}
+.mi-kind{color:#444444;font-size:10px;letter-spacing:.8px;text-transform:uppercase;flex-shrink:0}
+.mi.child .mi-main{padding-left:16px}
+.mi-acts{display:flex;gap:4px;flex-shrink:0}
+.mi-btn{width:24px;height:24px;background:#141414;border:1px solid #222222;color:#555555;border-radius:4px;cursor:pointer;font-size:11px;display:flex;align-items:center;justify-content:center}
+.mi-btn:hover:not([disabled]){color:#cccccc;border-color:#444444}
+.mi-btn[disabled]{opacity:.25;cursor:default}
 .ud{color:#aaaaaa;font-size:8px;flex-shrink:0;opacity:0}
 .ud.show{opacity:1}
-.sb-foot{padding:8px}
+.sb-foot{padding:8px;display:flex;gap:8px}
 /* Main */
 .main{flex:1;display:flex;flex-direction:column;overflow:hidden;min-width:0}
 .editor{flex:1;padding:14px 16px;display:flex;flex-direction:column;gap:10px;overflow-y:auto;-webkit-overflow-scrolling:touch}
@@ -141,6 +151,8 @@ input[type=number]{-moz-appearance:textfield}
 .btn-del:hover{color:#dd6060}
 .btn-new{padding:10px 16px;background:#141414;color:#666666;border:1px solid #222222;border-radius:5px;cursor:pointer;font-family:inherit;font-size:13px;font-weight:bold;letter-spacing:.5px;text-transform:uppercase;min-height:44px}
 .btn-new:hover{color:#aaaaaa}
+.btn-new.alt{background:#11161d;color:#60758b;border-color:#1d2d3d}
+.btn-new.alt:hover{color:#9db4ca}
 .kh{font-size:10px;color:#222222;margin-left:auto}
 .status{font-size:11px;min-height:16px;padding:2px 0;transition:opacity .5s}
 ::-webkit-scrollbar{width:4px}::-webkit-scrollbar-track{background:#0a0a0a}::-webkit-scrollbar-thumb{background:#222222;border-radius:2px}
@@ -172,7 +184,8 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
   .mb{min-height:32px;padding:4px 9px;font-size:11px}
   .btn-save,.btn-del,.btn-new{min-height:34px;font-size:11px;padding:6px 14px}
   .add-btn{min-height:34px;font-size:11px;padding:6px 12px;width:auto}
-  .mi{min-height:32px;padding:7px 10px}
+  .mi{min-height:32px;padding:6px 8px}
+  .mi-btn{width:22px;height:22px}
 }
 @media(max-width:599px){
   .hbg{display:flex}
@@ -323,7 +336,8 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
     </div>
     <div class="macro-list" id="ml"></div>
     <div class="sb-foot">
-      <button class="btn-new" onclick="newMacro()" style="width:100%;text-align:center">+ New</button>
+      <button class="btn-new" onclick="newMacro()" style="flex:1;text-align:center">+ Macro</button>
+      <button class="btn-new alt" onclick="newGroup()" style="flex:1;text-align:center">+ Group</button>
     </div>
   </div>
   <div class="main">
@@ -333,7 +347,7 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
   </div>
 </div>
 <script>
-var macros=[],cur=-1,dirty=false,steps=[],stTimer=null;
+var macros=[],curId=-1,curType='macro',dirty=false,steps=[],stTimer=null;
 var KEYS=['ENTER','ESC','WIN','BACKSPACE','TAB','SPACE','DELETE','INSERT','UP','DOWN','LEFT','RIGHT','HOME','END','PGUP','PGDN','F1','F2','F3','F4','F5','F6','F7','F8','F9','F10','F11','F12','CAPSLOCK','PRINTSCREEN','SCROLLLOCK','PAUSE','NUMLOCK','A','B','C','D','E','F','G','H','I','J','K','L','M','N','O','P','Q','R','S','T','U','V','W','X','Y','Z','0','1','2','3','4','5','6','7','8','9'];
 var MODS=['CTRL','SHIFT','ALT','WIN'];
 
@@ -571,69 +585,134 @@ async function resetWebColors(){
 async function load(){
   try{
     var r=await fetch('/api/macros');macros=await r.json();setOnline(true);
-    document.getElementById('mc').textContent=macros.length;renderList();
+    document.getElementById('mc').textContent=macros.filter(function(m){return m.type==='macro';}).length;renderList();
     var ip=r.headers.get('X-Device-IP');if(ip)document.getElementById('ip-badge').textContent=ip;
   }catch(e){setOnline(false);st('Connection error','#cc4444');}
   fetch('/api/webcolors').then(function(r){return r.json();}).then(applyWebColors).catch(function(){});
 }
 
+function findItem(id){return macros.find(function(m){return m.id===id;})||null;}
+function groupOptions(sel){
+  var out='<option value="-1"'+(sel===-1?' selected':'')+'>Root</option>';
+  macros.filter(function(m){return m.type==='group';}).forEach(function(g){
+    out+='<option value="'+g.id+'"'+(g.id===sel?' selected':'')+'>'+esc(g.name)+'</option>';
+  });
+  return out;
+}
 function renderList(){
-  document.getElementById('ml').innerHTML=macros.map(function(m,i){
-    return'<div class="mi'+(i===cur?' active':'')+'" onclick="selMacro('+i+')" title="'+esc(m.name)+'">'
-      +'<span class="mi-num">'+(i+1)+'</span>'
+  var nRoot=0;
+  document.getElementById('ml').innerHTML=macros.map(function(m){
+    var isActive=m.id===curId&&m.type===curType;
+    var isChild=m.type==='macro'&&m.parent>=0;
+    var num=isChild?'':String(++nRoot);
+    return'<div class="mi'+(isActive?' active':'')+(isChild?' child':'')+'" title="'+esc(m.name)+'">'
+      +'<div class="mi-main" onclick="selectItem('+m.id+',\''+m.type+'\')">'
+      +'<span class="mi-num">'+num+'</span>'
+      +'<span class="mi-kind">'+(m.type==='group'?'Group':'Macro')+'</span>'
       +'<span class="mi-name">'+esc(m.name||'(no name)')+'</span>'
-      +'<span class="ud'+(i===cur&&dirty?' show':'')+'">&#9679;</span></div>';
+      +'<span class="ud'+(isActive&&dirty?' show':'')+'">&#9679;</span></div>'
+      +'<div class="mi-acts">'
+      +'<button class="mi-btn" onclick="moveItem('+m.id+',-1)" title="Move up">&#9650;</button>'
+      +'<button class="mi-btn" onclick="moveItem('+m.id+',1)" title="Move down">&#9660;</button>'
+      +'</div></div>';
   }).join('');
 }
 
 function markDirty(){if(!dirty){dirty=true;renderList();}}
 
-function edHTML(m,isNew){
+function macroEditorHTML(m,isNew){
+  var parent=(m&&typeof m.parent==='number')?m.parent:-1;
   return'<div class="fg"><label>Name</label>'
     +'<input type="text" id="m-name" maxlength="32" value="'+(isNew?'':esc(m.name))+'" placeholder="'+(isNew?'Macro name':'')+'" oninput="markDirty()" autocomplete="off"></div>'
+    +'<div class="fg"><label>Group</label><select class="modal-inp" id="m-parent" onchange="markDirty()">'+groupOptions(parent)+'</select></div>'
     +'<div class="fg"><div class="fh"><label>Steps</label><span class="sc" id="sc"></span></div>'
     +'<div class="step-list" id="step-list"></div>'
     +'<button class="add-btn" onclick="addStep()">+ Add step</button></div>'
     +'<div class="toolbar">'
-    +(isNew?'<button class="btn-save" onclick="save()">+ Create</button>'
-           :'<button class="btn-save" onclick="save()">&#10003; Save</button><button class="btn-del" onclick="del()">&#10007; Delete</button>')
+    +(isNew?'<button class="btn-save" onclick="saveMacro()">+ Create</button>'
+           :'<button class="btn-save" onclick="saveMacro()">&#10003; Save</button><button class="btn-del" onclick="delItem()">&#10007; Delete</button>')
     +'<span class="kh">Strg+S</span></div><div class="status" id="st"></div>';
 }
 
-function selMacro(i){
-  if(dirty&&cur>=0&&!confirm('Discard changes?'))return;
-  dirty=false;cur=i;renderList();closeSB();
-  steps=parseSteps(macros[i].steps);
-  document.getElementById('editor').innerHTML=edHTML(macros[i],false);
-  renderSteps();
+function groupEditorHTML(g,isNew){
+  return'<div class="fg"><label>Group Name</label>'
+    +'<input type="text" id="g-name" maxlength="32" value="'+(isNew?'':esc(g.name))+'" placeholder="'+(isNew?'Group name':'')+'" oninput="markDirty()" autocomplete="off"></div>'
+    +'<div class="fg"><label>Contains</label><div class="sc">'+((g&&g.child_count)||0)+' macros</div></div>'
+    +'<div class="toolbar">'
+    +(isNew?'<button class="btn-save" onclick="saveGroup()">+ Create</button>'
+           :'<button class="btn-save" onclick="saveGroup()">&#10003; Save</button><button class="btn-del" onclick="delItem()">&#10007; Delete</button><button class="btn-new" onclick="newMacro('+g.id+')">+ Macro in group</button>')
+    +'<span class="kh">Strg+S</span></div><div class="status" id="st"></div>';
 }
 
-function newMacro(){
-  if(dirty&&cur>=0&&!confirm('Discard changes?'))return;
-  dirty=false;cur=-1;steps=[];renderList();closeSB();
-  document.getElementById('editor').innerHTML=edHTML(null,true);
+function selectItem(id,type){
+  if(dirty&&!confirm('Discard changes?'))return;
+  dirty=false;curId=id;curType=type;renderList();closeSB();
+  var item=findItem(id);
+  if(!item)return;
+  if(type==='group'){
+    document.getElementById('editor').innerHTML=groupEditorHTML(item,false);
+  }else{
+    steps=parseSteps(item.steps);
+    document.getElementById('editor').innerHTML=macroEditorHTML(item,false);
+    renderSteps();
+  }
+}
+
+function newMacro(parentId){
+  if(dirty&&!confirm('Discard changes?'))return;
+  dirty=false;curId=-1;curType='macro';steps=[];renderList();closeSB();
+  document.getElementById('editor').innerHTML=macroEditorHTML({parent:typeof parentId==='number'?parentId:-1},true);
   renderSteps();markDirty();
 }
 
-async function save(){
+function newGroup(){
+  if(dirty&&!confirm('Discard changes?'))return;
+  dirty=false;curId=-1;curType='group';steps=[];renderList();closeSB();
+  document.getElementById('editor').innerHTML=groupEditorHTML({child_count:0},true);
+  markDirty();
+}
+
+async function saveMacro(){
   var name=(document.getElementById('m-name')||{}).value||'';
+  var parent=parseInt((document.getElementById('m-parent')||{}).value||'-1',10);
   name=name.trim();if(!name){st('Name cannot be empty.','#cc4444');return;}
-  var body=new URLSearchParams({id:cur,name:name,steps:serializeSteps(steps)});
+  var currentId=curType==='macro'?curId:-1;
+  var body=new URLSearchParams({id:currentId,name:name,steps:serializeSteps(steps),parent:parent});
   try{
-    var r=await fetch('/api/save',{method:'POST',body:body});var j=await r.json();
-    if(j.ok){dirty=false;st('Saved!','#aaaaaa');var pv=cur;await load();cur=(pv===-1)?macros.length-1:pv;renderList();}
+    var r=await fetch('/api/save-macro',{method:'POST',body:body});var j=await r.json();
+    if(j.ok){dirty=false;curId=j.id;curType='macro';await load();selectItem(curId,'macro');st('Saved!','#aaaaaa');}
     else st('Error: '+(j.err||'?'),'#cc4444');
   }catch(e){st('Network error','#cc4444');}
 }
 
-async function del(){
-  if(cur<0)return;
-  if(!confirm('Delete macro "'+macros[cur].name+'"?'))return;
+async function saveGroup(){
+  var name=(document.getElementById('g-name')||{}).value||'';
+  name=name.trim();if(!name){st('Name cannot be empty.','#cc4444');return;}
+  var currentId=curType==='group'?curId:-1;
   try{
-    var r=await fetch('/api/delete',{method:'POST',body:new URLSearchParams({id:cur})});var j=await r.json();
-    if(j.ok){dirty=false;cur=-1;steps=[];await load();document.getElementById('editor').innerHTML='<div class="ph"><div class="ph-i">&#10006;</div><div class="ph-t">Deleted</div></div>';}
+    var r=await fetch('/api/save-group',{method:'POST',body:new URLSearchParams({id:currentId,name:name})});var j=await r.json();
+    if(j.ok){dirty=false;curId=j.id;curType='group';await load();selectItem(curId,'group');st('Saved!','#aaaaaa');}
     else st('Error: '+(j.err||'?'),'#cc4444');
   }catch(e){st('Network error','#cc4444');}
+}
+
+async function delItem(){
+  if(curId<0)return;
+  var item=findItem(curId);
+  if(!item)return;
+  if(!confirm('Delete '+item.type+' "'+item.name+'"?'))return;
+  try{
+    var r=await fetch('/api/delete-item',{method:'POST',body:new URLSearchParams({id:curId})});var j=await r.json();
+    if(j.ok){dirty=false;curId=-1;steps=[];await load();document.getElementById('editor').innerHTML='<div class="ph"><div class="ph-i">&#10006;</div><div class="ph-t">Deleted</div></div>';}
+    else st('Error: '+(j.err||'?'),'#cc4444');
+  }catch(e){st('Network error','#cc4444');}
+}
+
+async function moveItem(id,direction){
+  try{
+    var r=await fetch('/api/move-item',{method:'POST',body:new URLSearchParams({id:id,direction:direction})});var j=await r.json();
+    if(j.ok){await load();renderList();}
+  }catch(e){}
 }
 
 function st(msg,color){
@@ -687,7 +766,13 @@ async function deleteGif(){
   }catch(e){mst('Fehler.');}
 }
 
-document.addEventListener('keydown',function(e){if((e.ctrlKey||e.metaKey)&&e.key==='s'){e.preventDefault();save();}});
+document.addEventListener('keydown',function(e){
+  if((e.ctrlKey||e.metaKey)&&e.key==='s'){
+    e.preventDefault();
+    if(curType==='group')saveGroup();
+    else saveMacro();
+  }
+});
 load();
 
 var _logTimer=null;
@@ -740,33 +825,52 @@ static String json_str(const String& s) {
 // ── HTTP handlers ─────────────────────────────────────────────────────────────
 
 static void handle_root() {
-    server.send(200, "text/html; charset=utf-8", HTML_PAGE);
+    server.send_P(200, "text/html; charset=utf-8", HTML_PAGE);
 }
 
 static void handle_api_macros() {
     String json = "[";
-    int cnt = macro_store_count();
-    for (int i = 0; i < cnt; i++) {
-        const MacroInfo* m = macro_store_get(i);
-        if (!m) continue;
-        if (i > 0) json += ",";
-        json += "{\"id\":" + String(i) +
-                ",\"name\":" + json_str(String(m->name)) +
-                ",\"steps\":" + json_str(macro_store_get_steps_raw(i)) +
-                "}";
+    int root_count = macro_store_item_count(-1);
+    bool first = true;
+    auto append_item = [&](const MacroItemInfo* item) {
+        if (!item) return;
+        if (!first) json += ",";
+        first = false;
+        json += "{\"id\":" + String(item->id) +
+                ",\"type\":" + json_str(item->type == MACRO_ITEM_GROUP ? "group" : "macro") +
+                ",\"name\":" + json_str(String(item->name)) +
+                ",\"parent\":" + String(item->parent_group_id) +
+                ",\"child_count\":" + String(item->child_count);
+        if (item->type == MACRO_ITEM_MACRO) {
+            json += ",\"steps\":" + json_str(macro_store_get_steps_raw_by_id(item->id));
+        }
+        json += "}";
+    };
+
+    for (int i = 0; i < root_count; i++) {
+        const MacroItemInfo* item = macro_store_get_item(-1, i);
+        if (!item) continue;
+        append_item(item);
+        if (item->type == MACRO_ITEM_GROUP) {
+            int child_count = macro_store_item_count(item->id);
+            for (int j = 0; j < child_count; j++) {
+                append_item(macro_store_get_item(item->id, j));
+            }
+        }
     }
     json += "]";
     server.sendHeader("X-Device-IP", web_server_ip());
     server.send(200, "application/json", json);
 }
 
-static void handle_api_save() {
-    if (!server.hasArg("name") || !server.hasArg("steps") || !server.hasArg("id")) {
+static void handle_api_save_macro() {
+    if (!server.hasArg("name") || !server.hasArg("steps") || !server.hasArg("id") || !server.hasArg("parent")) {
         server.send(400, "application/json", "{\"ok\":false,\"err\":\"Missing parameters\"}");
         return;
     }
-    int  id    = server.arg("id").toInt();
-    String name  = server.arg("name");
+    int id = server.arg("id").toInt();
+    int parent = server.arg("parent").toInt();
+    String name = server.arg("name");
     String steps = server.arg("steps");
 
     name.trim();
@@ -775,7 +879,7 @@ static void handle_api_save() {
         return;
     }
 
-    int result = macro_store_save(id, name, steps);
+    int result = macro_store_save_macro(id, name, steps, parent);
     if (result < 0) {
         server.send(500, "application/json", "{\"ok\":false,\"err\":\"Save failed\"}");
         return;
@@ -785,14 +889,54 @@ static void handle_api_save() {
     server.send(200, "application/json", "{\"ok\":true,\"id\":" + String(result) + "}");
 }
 
-static void handle_api_delete() {
+static void handle_api_save_group() {
+    if (!server.hasArg("name") || !server.hasArg("id")) {
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Missing parameters\"}");
+        return;
+    }
+    int id = server.arg("id").toInt();
+    String name = server.arg("name");
+    name.trim();
+    if (name.length() == 0) {
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Name empty\"}");
+        return;
+    }
+
+    int result = macro_store_save_group(id, name);
+    if (result < 0) {
+        server.send(500, "application/json", "{\"ok\":false,\"err\":\"Save failed\"}");
+        return;
+    }
+
+    ui_reload();
+    server.send(200, "application/json", "{\"ok\":true,\"id\":" + String(result) + "}");
+}
+
+static void handle_api_delete_item() {
     if (!server.hasArg("id")) {
         server.send(400, "application/json", "{\"ok\":false,\"err\":\"Missing ID\"}");
         return;
     }
     int id = server.arg("id").toInt();
-    if (!macro_store_delete(id)) {
-        server.send(500, "application/json", "{\"ok\":false,\"err\":\"Delete failed\"}");
+    if (!macro_store_delete_item(id)) {
+        server.send(500, "application/json", "{\"ok\":false,\"err\":\"Delete failed or group not empty\"}");
+        return;
+    }
+
+    ui_reload();
+    server.send(200, "application/json", "{\"ok\":true}");
+}
+
+static void handle_api_move_item() {
+    if (!server.hasArg("id") || !server.hasArg("direction")) {
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Missing parameters\"}");
+        return;
+    }
+
+    int id = server.arg("id").toInt();
+    int direction = server.arg("direction").toInt();
+    if (!macro_store_move_item(id, direction)) {
+        server.send(200, "application/json", "{\"ok\":false}");
         return;
     }
 
@@ -803,7 +947,7 @@ static void handle_api_delete() {
 static void handle_api_status() {
     String json = "{";
     json += "\"fs_ok\":"    + String(macro_store_fs_ok() ? "true" : "false");
-    json += ",\"count\":"   + String(macro_store_count());
+    json += ",\"count\":"   + String(macro_store_macro_count());
     json += ",\"files\":"   + json_str(macro_store_list_files());
     json += "}";
     server.send(200, "application/json", json);
@@ -944,16 +1088,47 @@ static void handle_api_colors_post() {
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
+static uint8_t color_luma(uint32_t color) {
+    uint8_t r = (color >> 16) & 0xFF;
+    uint8_t g = (color >> 8) & 0xFF;
+    uint8_t b = color & 0xFF;
+    return (uint8_t)((r * 299U + g * 587U + b * 114U) / 1000U);
+}
+
+static bool has_usable_contrast(uint32_t bg, uint32_t fg) {
+    int diff = (int)color_luma(fg) - (int)color_luma(bg);
+    if (diff < 0) diff = -diff;
+    return diff >= 64;
+}
+
 static void handle_api_webcolors_get() {
+    constexpr uint32_t kDefaultBg      = 0x0A0A0A;
+    constexpr uint32_t kDefaultSurface = 0x111111;
+    constexpr uint32_t kDefaultBorder  = 0x222222;
+    constexpr uint32_t kDefaultText    = 0xE0E0E0;
+    constexpr uint32_t kDefaultDim     = 0x888888;
+    constexpr uint32_t kDefaultAccent  = 0x888888;
+
     Preferences prefs;
     prefs.begin("webclr", true);
-    uint32_t bg      = prefs.getUInt("bg",      0x0A0A0A);
-    uint32_t surface = prefs.getUInt("surface",  0x111111);
-    uint32_t border  = prefs.getUInt("border",   0x222222);
-    uint32_t text    = prefs.getUInt("text",     0xE0E0E0);
-    uint32_t dim     = prefs.getUInt("dim",      0x888888);
-    uint32_t accent  = prefs.getUInt("accent",   0x888888);
+    uint32_t bg      = prefs.getUInt("bg",      kDefaultBg);
+    uint32_t surface = prefs.getUInt("surface", kDefaultSurface);
+    uint32_t border  = prefs.getUInt("border",  kDefaultBorder);
+    uint32_t text    = prefs.getUInt("text",    kDefaultText);
+    uint32_t dim     = prefs.getUInt("dim",     kDefaultDim);
+    uint32_t accent  = prefs.getUInt("accent",  kDefaultAccent);
     prefs.end();
+
+    if (!has_usable_contrast(bg, text)) {
+        LOG_W("WEB", "invalid web UI colors found, falling back to defaults");
+        bg = kDefaultBg;
+        surface = kDefaultSurface;
+        border = kDefaultBorder;
+        text = kDefaultText;
+        dim = kDefaultDim;
+        accent = kDefaultAccent;
+    }
+
     char buf[140];
     snprintf(buf, sizeof(buf),
         "{\"bg\":\"%06X\",\"surface\":\"%06X\",\"border\":\"%06X\","
@@ -969,12 +1144,20 @@ static void handle_api_webcolors_post() {
         if (v.startsWith("#")) v = v.substring(1);
         return (uint32_t)strtoul(v.c_str(), nullptr, 16);
     };
+
+    uint32_t bg = server.hasArg("bg") ? parseHex(server.arg("bg")) : 0x0A0A0A;
+    uint32_t text = server.hasArg("text") ? parseHex(server.arg("text")) : 0xE0E0E0;
+    if (!has_usable_contrast(bg, text)) {
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Text color needs more contrast\"}");
+        return;
+    }
+
     Preferences prefs;
     prefs.begin("webclr", false);
-    if (server.hasArg("bg"))      prefs.putUInt("bg",      parseHex(server.arg("bg")));
+    if (server.hasArg("bg"))      prefs.putUInt("bg",      bg);
     if (server.hasArg("surface")) prefs.putUInt("surface", parseHex(server.arg("surface")));
     if (server.hasArg("border"))  prefs.putUInt("border",  parseHex(server.arg("border")));
-    if (server.hasArg("text"))    prefs.putUInt("text",    parseHex(server.arg("text")));
+    if (server.hasArg("text"))    prefs.putUInt("text",    text);
     if (server.hasArg("dim"))     prefs.putUInt("dim",     parseHex(server.arg("dim")));
     if (server.hasArg("accent"))  prefs.putUInt("accent",  parseHex(server.arg("accent")));
     prefs.end();
@@ -1038,50 +1221,19 @@ static void handle_not_found() {
     server.send(404, "text/plain", "Not found");
 }
 
-// ── Public API ────────────────────────────────────────────────────────────────
+// ── Internal helpers ──────────────────────────────────────────────────────────
 
-static bool s_wifi_enabled = true;
-
-bool web_server_wifi_enabled() {
-    return s_wifi_enabled;
-}
-
-void web_server_wifi_toggle() {
-    if (s_wifi_enabled) {
-        server.stop();
-        WiFi.softAPdisconnect(true);
-        WiFi.mode(WIFI_OFF);
-        s_wifi_enabled = false;
-    } else {
-        Preferences prefs;
-        prefs.begin("wifi", true);
-        String ssid = prefs.getString("ssid", WIFI_AP_SSID);
-        String pass = prefs.getString("pass", WIFI_AP_PASS);
-        prefs.end();
-        WiFi.mode(WIFI_AP);
-        WiFi.softAP(ssid.c_str(), pass.c_str());
-        server.begin();
-        s_wifi_enabled = true;
-    }
-}
-
-void web_server_init() {
-    // Read SSID and password from NVS (fallback: config.h constants)
-    Preferences prefs;
-    prefs.begin("wifi", true);
-    String ssid = prefs.getString("ssid", WIFI_AP_SSID);
-    String pass = prefs.getString("pass", WIFI_AP_PASS);
-    prefs.end();
-
-    WiFi.mode(WIFI_AP);
-    WiFi.softAP(ssid.c_str(), pass.c_str());
+static void register_routes() {
+    if (s_routes_registered) return;
 
     server.on("/",                       HTTP_GET,  handle_root);
     server.on("/api/macros",             HTTP_GET,  handle_api_macros);
     server.on("/api/status",             HTTP_GET,  handle_api_status);
     server.on("/api/settings",           HTTP_GET,  handle_api_settings_get);
-    server.on("/api/save",               HTTP_POST, handle_api_save);
-    server.on("/api/delete",             HTTP_POST, handle_api_delete);
+    server.on("/api/save-macro",         HTTP_POST, handle_api_save_macro);
+    server.on("/api/save-group",         HTTP_POST, handle_api_save_group);
+    server.on("/api/delete-item",        HTTP_POST, handle_api_delete_item);
+    server.on("/api/move-item",          HTTP_POST, handle_api_move_item);
     server.on("/api/settings",           HTTP_POST, handle_api_settings_post);
     server.on("/api/restart",            HTTP_POST, handle_api_restart);
     server.on("/api/restart-bootloader", HTTP_POST, handle_api_restart_bootloader);
@@ -1100,13 +1252,107 @@ void web_server_init() {
     server.on("/api/force-screensaver",  HTTP_POST, handle_api_force_screensaver);
     server.onNotFound(handle_not_found);
 
+    s_routes_registered = true;
+}
+
+static void restore_default_wifi_credentials() {
+    Preferences prefs;
+    prefs.begin("wifi", false);
+    prefs.putString("ssid", WIFI_AP_SSID);
+    prefs.putString("pass", WIFI_AP_PASS);
+    prefs.end();
+}
+
+static void reset_wifi_stack() {
+    WiFi.persistent(false);
+    WiFi.disconnect(true, true);
+    WiFi.softAPdisconnect(true);
+    WiFi.mode(WIFI_OFF);
+    delay(150);
+}
+
+static bool start_access_point_with(const String& ssid, const String& pass) {
+    reset_wifi_stack();
+    WiFi.mode(WIFI_AP);
+    delay(100);
+
+    IPAddress ap_ip(192, 168, 4, 1);
+    IPAddress ap_gateway(192, 168, 4, 1);
+    IPAddress ap_subnet(255, 255, 255, 0);
+    if (!WiFi.softAPConfig(ap_ip, ap_gateway, ap_subnet)) {
+        LOG_W("WEB", "softAPConfig failed, continuing with default network settings");
+    }
+
+    bool ok = WiFi.softAP(ssid.c_str(), pass.c_str());
+    if (!ok) {
+        LOG_E("WEB", "softAP start failed for SSID '%s'", ssid.c_str());
+        return false;
+    }
+
     server.begin();
+    s_wifi_enabled = true;
+    LOG_I("WEB", "AP started: SSID '%s' IP %s", ssid.c_str(), WiFi.softAPIP().toString().c_str());
+    return true;
+}
+
+static bool start_access_point_from_settings() {
+    Preferences prefs;
+    prefs.begin("wifi", true);
+    String ssid = prefs.getString("ssid", WIFI_AP_SSID);
+    String pass = prefs.getString("pass", WIFI_AP_PASS);
+    prefs.end();
+
+    ssid.trim();
+    if (ssid.isEmpty() || pass.length() < 8) {
+        LOG_W("WEB", "invalid WiFi settings found, restoring defaults");
+        restore_default_wifi_credentials();
+        return start_access_point_with(WIFI_AP_SSID, WIFI_AP_PASS);
+    }
+
+    if (start_access_point_with(ssid, pass)) {
+        return true;
+    }
+
+    LOG_W("WEB", "falling back to default WiFi credentials");
+    restore_default_wifi_credentials();
+    return start_access_point_with(WIFI_AP_SSID, WIFI_AP_PASS);
+}
+
+// ── Public API ────────────────────────────────────────────────────────────────
+
+bool web_server_wifi_enabled() {
+    return s_wifi_enabled;
+}
+
+void web_server_wifi_toggle() {
+    if (s_wifi_enabled) {
+        server.stop();
+        WiFi.softAPdisconnect(true);
+        WiFi.mode(WIFI_OFF);
+        s_wifi_enabled = false;
+        LOG_I("WEB", "WiFi AP disabled");
+    } else {
+        start_access_point_from_settings();
+    }
+}
+
+void web_server_init() {
+    register_routes();
+    reset_wifi_stack();
+    LOG_I("WEB", "WiFi AP disabled at boot");
 }
 
 void web_server_handle() {
+    if (!s_wifi_enabled) {
+        return;
+    }
+
     server.handleClient();
 }
 
 String web_server_ip() {
+    if (!s_wifi_enabled) {
+        return String();
+    }
     return WiFi.softAPIP().toString();
 }

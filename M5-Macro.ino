@@ -63,7 +63,7 @@ static void handle_encoder() {
         }
         if (!s_executing) {
             int current = ui_get_selected();
-            int count   = macro_store_count();
+            int count   = ui_get_visible_count();
             if (count > 0) {
                 // Modulo arithmetic with wrap-around
                 int next = ((current + steps) % count + count) % count;
@@ -84,13 +84,15 @@ static void handle_button() {
             energy_save_activity();
             return;
         }
-        int idx = ui_get_selected();
-        if (macro_store_count() > 0) {
+        int macro_id = -1;
+        if (ui_get_visible_count() > 0) {
             s_executing = true;
             energy_save_activity();
-            ui_show_running(idx);
-            macro_execute(idx);
-            ui_show_idle();
+            if (ui_activate_selected(&macro_id) && macro_id >= 0) {
+                ui_show_running(macro_id);
+                macro_execute(macro_id);
+                ui_show_idle();
+            }
             s_executing = false;
         }
     }
@@ -98,8 +100,7 @@ static void handle_button() {
 
 // ── Setup ───────────────────────────────────────────────────────────────────
 void setup() {
-    // 1. Initialize BLE stack before USB so BLEDevice::init() never races
-    //    with active TinyUSB interrupt traffic (root cause of USB+BLE crash).
+    // 1. Prepare BLE state. BLE itself starts only when the user enables it.
     ble_keyboard_init();
 
     // 2. Initialize USB (ESP32-S3 TinyUSB)
@@ -136,7 +137,7 @@ void setup() {
     // 8. Start web editor (WiFi AP + HTTP server)
     web_server_init();
 
-    LOG_I("BOOT", "ready – IP %s", web_server_ip().c_str());
+    LOG_I("BOOT", "ready - WiFi disabled by default");
 }
 
 // ── Main loop ────────────────────────────────────────────────────────────────

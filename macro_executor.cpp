@@ -53,8 +53,8 @@ static void executeStep(const MacroStep& s) {
 }
 
 // ── Execute macro ────────────────────────────────────────────────────────────
-void macro_execute(int index) {
-    const MacroInfo* info = macro_store_get(index);
+void macro_execute(int macro_id) {
+    const MacroInfo* info = macro_store_get_macro_by_id(macro_id);
     if (!info) return;
 
     for (int i = 0; i < info->step_count; i++) {

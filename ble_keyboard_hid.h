@@ -1,7 +1,7 @@
 #pragma once
 #include <Arduino.h>
 
-// Initialize BLE HID keyboard (call once in setup, after USB init)
+// Prepare BLE HID keyboard state. Does not start BLE advertising by itself.
 void ble_keyboard_init();
 
 // Enable / disable BLE keyboard and advertising

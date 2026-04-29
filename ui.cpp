@@ -6,13 +6,22 @@
 #include "macro_executor.h"
 #include <Preferences.h>
 
-// ── Runtime color palette (loaded from NVS, defaults match original design) ──
 static uint32_t c_bg       = 0x000000;
 static uint32_t c_surface  = 0x000000;
 static uint32_t c_accent   = 0x808080;
 static uint32_t c_sel_bg   = 0x1A1A1A;
 static uint32_t c_text     = 0xFFFFFF;
 static uint32_t c_text_dim = 0x888888;
+
+static lv_obj_t* s_roller = nullptr;
+static lv_obj_t* s_wifi_btn = nullptr;
+static lv_obj_t* s_ble_btn = nullptr;
+static lv_obj_t* s_path_label = nullptr;
+
+static int s_visible_ids[MAX_STORE_ITEMS + 1];
+static MacroItemType s_visible_types[MAX_STORE_ITEMS + 1];
+static int s_visible_count = 0;
+static int s_current_group_id = -1;
 
 static void load_colors() {
     Preferences prefs;
@@ -26,15 +35,6 @@ static void load_colors() {
     prefs.end();
 }
 
-// ── Widget pointers (file scope) ─────────────────────────────────────────────
-static lv_obj_t* s_roller   = nullptr;
-static lv_obj_t* s_wifi_btn = nullptr;
-static lv_obj_t* s_ble_btn  = nullptr;
-static int       s_count    = 0;
-
-
-
-// ── WiFi toggle button (top-left) ────────────────────────────────────────────
 static void update_wifi_btn_color() {
     if (!s_wifi_btn) return;
     lv_obj_t* icon = lv_obj_get_child(s_wifi_btn, 0);
@@ -66,7 +66,6 @@ static void create_wifi_button(lv_obj_t* parent) {
     update_wifi_btn_color();
 }
 
-// ── Bluetooth toggle button (top-right) ──────────────────────────────────────
 static void update_ble_btn_color() {
     if (!s_ble_btn) return;
     lv_obj_t* icon = lv_obj_get_child(s_ble_btn, 0);
@@ -104,65 +103,101 @@ static void create_ble_button(lv_obj_t* parent) {
     update_ble_btn_color();
 }
 
-// ── Macro roller (center) ────────────────────────────────────────────────────
-static void create_roller(lv_obj_t* parent) {
-    // Build options string from macro store
-    String opts = "";
-    s_count = macro_store_count();
-    for (int i = 0; i < s_count; i++) {
-        const MacroInfo* m = macro_store_get(i);
-        if (m) {
-            if (opts.length() > 0) opts += "\n";
-            opts += String(m->name);
-        }
+static void refresh_path_label() {
+    if (!s_path_label) return;
+    if (s_current_group_id < 0) {
+        lv_label_set_text(s_path_label, "Macros");
+        return;
     }
-    if (opts.length() == 0) opts = "(no macros)";
+    const MacroGroupInfo* group = macro_store_get_group_by_id(s_current_group_id);
+    lv_label_set_text(s_path_label, group ? group->name : "Macros");
+}
 
+static void rebuild_visible_items() {
+    String options;
+    s_visible_count = 0;
+
+    if (s_current_group_id >= 0) {
+        s_visible_ids[s_visible_count] = -1;
+        s_visible_types[s_visible_count] = MACRO_ITEM_GROUP;
+        s_visible_count++;
+        options += "< Back";
+    }
+
+    int count = macro_store_item_count(s_current_group_id);
+    for (int i = 0; i < count && s_visible_count < MAX_STORE_ITEMS + 1; i++) {
+        const MacroItemInfo* item = macro_store_get_item(s_current_group_id, i);
+        if (!item) continue;
+        if (options.length() > 0) options += "\n";
+        if (item->type == MACRO_ITEM_GROUP) {
+            options += "[";
+            options += String(item->name);
+            options += "]";
+        } else {
+            options += String(item->name);
+        }
+        s_visible_ids[s_visible_count] = item->id;
+        s_visible_types[s_visible_count] = item->type;
+        s_visible_count++;
+    }
+
+    if (options.length() == 0) options = "(no macros)";
+    if (s_roller) {
+        lv_roller_set_options(s_roller, options.c_str(), LV_ROLLER_MODE_INFINITE);
+        lv_roller_set_selected(s_roller, 0, LV_ANIM_OFF);
+    }
+    refresh_path_label();
+}
+
+static void create_header_label(lv_obj_t* parent) {
+    s_path_label = lv_label_create(parent);
+    lv_obj_align(s_path_label, LV_ALIGN_TOP_MID, 0, 54);
+    lv_obj_set_style_text_font(s_path_label, &lv_font_montserrat_14, 0);
+    lv_obj_set_style_text_color(s_path_label, lv_color_hex(c_text_dim), 0);
+    refresh_path_label();
+}
+
+static void create_roller(lv_obj_t* parent) {
     s_roller = lv_roller_create(parent);
-    lv_roller_set_options(s_roller, opts.c_str(), LV_ROLLER_MODE_INFINITE);
-    lv_obj_set_style_radius(s_roller, 10, LV_PART_SELECTED);
-
     lv_roller_set_visible_row_count(s_roller, 5);
     lv_obj_set_width(s_roller, 230);
     lv_obj_set_height(s_roller, 150);
-    lv_obj_align(s_roller, LV_ALIGN_CENTER, 0, 6);
+    lv_obj_align(s_roller, LV_ALIGN_CENTER, 0, 18);
 
-    // Main style: dark background, dimmed text
-    lv_obj_set_style_bg_color   (s_roller, lv_color_hex(c_surface),  LV_PART_MAIN);
-    lv_obj_set_style_bg_opa     (s_roller, LV_OPA_COVER,              LV_PART_MAIN);
-    lv_obj_set_style_border_width(s_roller, 0,                         LV_PART_MAIN);
-    lv_obj_set_style_text_color (s_roller, lv_color_hex(c_text_dim),  LV_PART_MAIN);
-    lv_obj_set_style_text_font  (s_roller, &lv_font_montserrat_16,     LV_PART_MAIN);
-    lv_obj_set_style_pad_left   (s_roller, 10,                         LV_PART_MAIN);
-    lv_obj_set_style_pad_right  (s_roller, 10,                         LV_PART_MAIN);
+    lv_obj_set_style_radius(s_roller, 10, LV_PART_SELECTED);
+    lv_obj_set_style_bg_color(s_roller, lv_color_hex(c_surface), LV_PART_MAIN);
+    lv_obj_set_style_bg_opa(s_roller, LV_OPA_COVER, LV_PART_MAIN);
+    lv_obj_set_style_border_width(s_roller, 0, LV_PART_MAIN);
+    lv_obj_set_style_text_color(s_roller, lv_color_hex(c_text_dim), LV_PART_MAIN);
+    lv_obj_set_style_text_font(s_roller, &lv_font_montserrat_16, LV_PART_MAIN);
+    lv_obj_set_style_pad_left(s_roller, 10, LV_PART_MAIN);
+    lv_obj_set_style_pad_right(s_roller, 10, LV_PART_MAIN);
 
-    // Selected entry: accent color, larger font, subtle border
-    lv_obj_set_style_bg_color    (s_roller, lv_color_hex(c_sel_bg),   LV_PART_SELECTED);
-    lv_obj_set_style_bg_opa      (s_roller, LV_OPA_COVER,              LV_PART_SELECTED);
-    lv_obj_set_style_text_color  (s_roller, lv_color_hex(c_text),     LV_PART_SELECTED);
-    lv_obj_set_style_text_font   (s_roller, &lv_font_montserrat_20,    LV_PART_SELECTED);
-    lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent),   LV_PART_SELECTED);
-    lv_obj_set_style_border_width(s_roller, 1,                         LV_PART_SELECTED);
-    lv_obj_set_style_border_opa  (s_roller, LV_OPA_50,                 LV_PART_SELECTED);
+    lv_obj_set_style_bg_color(s_roller, lv_color_hex(c_sel_bg), LV_PART_SELECTED);
+    lv_obj_set_style_bg_opa(s_roller, LV_OPA_COVER, LV_PART_SELECTED);
+    lv_obj_set_style_text_color(s_roller, lv_color_hex(c_text), LV_PART_SELECTED);
+    lv_obj_set_style_text_font(s_roller, &lv_font_montserrat_20, LV_PART_SELECTED);
+    lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent), LV_PART_SELECTED);
+    lv_obj_set_style_border_width(s_roller, 1, LV_PART_SELECTED);
+    lv_obj_set_style_border_opa(s_roller, LV_OPA_50, LV_PART_SELECTED);
+
+    rebuild_visible_items();
 }
-
-// ── Public API ───────────────────────────────────────────────────────────────
 
 void ui_init() {
     load_colors();
     lv_obj_t* scr = lv_scr_act();
-
-    // Screen background
-    lv_obj_set_style_bg_color(scr, lv_color_hex(c_bg),    0);
-    lv_obj_set_style_bg_opa  (scr, LV_OPA_COVER,            0);
+    lv_obj_set_style_bg_color(scr, lv_color_hex(c_bg), 0);
+    lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
 
     create_wifi_button(scr);
     create_ble_button(scr);
+    //create_header_label(scr);
     create_roller(scr);
 }
 
-void ui_show_running(int /*index*/) {
-    lv_timer_handler();  // Redraw immediately before blocking execution
+void ui_show_running(int /*macro_id*/) {
+    lv_timer_handler();
 }
 
 void ui_show_idle() {
@@ -170,25 +205,57 @@ void ui_show_idle() {
 }
 
 int ui_get_selected() {
-    if (!s_roller || s_count == 0) return 0;
+    if (!s_roller || s_visible_count == 0) return 0;
     return (int)lv_roller_get_selected(s_roller);
 }
 
+int ui_get_visible_count() {
+    return s_visible_count;
+}
+
 void ui_set_selected(int index) {
-    if (!s_roller || s_count == 0) return;
+    if (!s_roller || s_visible_count == 0) return;
     lv_roller_set_selected(s_roller, (uint16_t)index, LV_ANIM_ON);
+}
+
+bool ui_activate_selected(int* macro_id) {
+    if (macro_id) *macro_id = -1;
+    if (s_visible_count == 0) return false;
+
+    int selected = ui_get_selected();
+    if (selected < 0 || selected >= s_visible_count) return false;
+
+    int id = s_visible_ids[selected];
+    if (s_current_group_id >= 0 && selected == 0 && id == -1) {
+        s_current_group_id = -1;
+        rebuild_visible_items();
+        return false;
+    }
+
+    if (s_visible_types[selected] == MACRO_ITEM_GROUP) {
+        s_current_group_id = id;
+        rebuild_visible_items();
+        return false;
+    }
+
+    if (macro_id) *macro_id = id;
+    return true;
 }
 
 void ui_apply_colors() {
     load_colors();
     lv_obj_t* scr = lv_scr_act();
     lv_obj_set_style_bg_color(scr, lv_color_hex(c_bg), 0);
-    if (!s_roller) return;
-    lv_obj_set_style_bg_color   (s_roller, lv_color_hex(c_surface),  LV_PART_MAIN);
-    lv_obj_set_style_text_color (s_roller, lv_color_hex(c_text_dim), LV_PART_MAIN);
-    lv_obj_set_style_bg_color   (s_roller, lv_color_hex(c_sel_bg),   LV_PART_SELECTED);
-    lv_obj_set_style_text_color (s_roller, lv_color_hex(c_text),     LV_PART_SELECTED);
-    lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent),  LV_PART_SELECTED);
+    if (s_roller) {
+        lv_obj_set_style_bg_color(s_roller, lv_color_hex(c_surface), LV_PART_MAIN);
+        lv_obj_set_style_text_color(s_roller, lv_color_hex(c_text_dim), LV_PART_MAIN);
+        lv_obj_set_style_bg_color(s_roller, lv_color_hex(c_sel_bg), LV_PART_SELECTED);
+        lv_obj_set_style_text_color(s_roller, lv_color_hex(c_text), LV_PART_SELECTED);
+        lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent), LV_PART_SELECTED);
+    }
+    if (s_path_label) {
+        lv_obj_set_style_text_color(s_path_label, lv_color_hex(c_text_dim), 0);
+    }
     if (s_wifi_btn) {
         lv_obj_set_style_bg_color(s_wifi_btn, lv_color_hex(c_sel_bg), 0);
         update_wifi_btn_color();
@@ -201,21 +268,8 @@ void ui_apply_colors() {
 }
 
 void ui_reload() {
-    // Rebuild roller options from updated macro store
-    String opts = "";
-    s_count = macro_store_count();
-    for (int i = 0; i < s_count; i++) {
-        const MacroInfo* m = macro_store_get(i);
-        if (m) {
-            if (opts.length() > 0) opts += "\n";
-            opts += String(m->name);
-        }
+    if (s_current_group_id >= 0 && !macro_store_get_group_by_id(s_current_group_id)) {
+        s_current_group_id = -1;
     }
-    if (opts.length() == 0) opts = "(no macros)";
-
-    if (s_roller) {
-        lv_roller_set_options(s_roller, opts.c_str(), LV_ROLLER_MODE_INFINITE);
-        lv_roller_set_selected(s_roller, 0, LV_ANIM_OFF);
-    }
+    rebuild_visible_items();
 }
-
