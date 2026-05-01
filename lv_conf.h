@@ -6,7 +6,9 @@
 #include <stdint.h>
 #endif
 
-#define LV_CONF_SKIP
+/* LV_CONF_SKIP intentionally removed: when defined, LVGL 9 ignores this file
+   entirely and falls back to defaults (filesystem and most features disabled).
+   Copy this file to Arduino/libraries/lvgl/lv_conf.h as-is. */
 #if 1
 
 /* Farbe */
