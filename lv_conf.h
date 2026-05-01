@@ -6,7 +6,9 @@
 #include <stdint.h>
 #endif
 
-#define LV_CONF_SKIP
+/* LV_CONF_SKIP intentionally removed: when defined, LVGL 9 ignores this file
+   entirely and falls back to defaults (filesystem and most features disabled).
+   Copy this file to Arduino/libraries/lvgl/lv_conf.h as-is. */
 #if 1
 
 /* Farbe */
@@ -32,6 +34,10 @@
 #define LV_MEM_CUSTOM_ALLOC   malloc
 #define LV_MEM_CUSTOM_REALLOC realloc
 #define LV_MEM_CUSTOM_FREE    free
+
+/* Filesystem – custom callback driver (lv_fs_drv_t / lv_fs_drv_register) */
+#define LV_USE_FS_CALLBACK    1
+#define LV_FS_CALLBACK_LETTER 'S'
 
 /* GIF screensaver widget */
 #define LV_USE_GIF        1
