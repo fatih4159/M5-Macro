@@ -95,6 +95,8 @@ Built-in libraries (shipped with the ESP32 Arduino Core) require no separate ins
 | **M5Dial** | M5Stack | ≥ 1.0.3 | Arduino Library Manager |
 | **lvgl** | LVGL LLC (kisvegabor) | ≥ 9.2.0 | Arduino Library Manager |
 | **ESP32-BLE-Keyboard** | T-vK | 0.3.3-beta | [GitHub](https://github.com/T-vK/ESP32-BLE-Keyboard) |
+| **AnimatedGIF** | Larry Bank | 2.2.0 | Arduino Library Manager |
+
 
 > **ESP32-BLE-Keyboard** is not in the Arduino Library Manager.  
 > Download the `.zip` from GitHub and install via **Sketch → Include Library → Add .ZIP Library**.
