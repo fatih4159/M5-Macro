@@ -33,6 +33,10 @@
 #define LV_MEM_CUSTOM_REALLOC realloc
 #define LV_MEM_CUSTOM_FREE    free
 
+/* Filesystem – custom callback driver (lv_fs_drv_t / lv_fs_drv_register) */
+#define LV_USE_FS_CALLBACK    1
+#define LV_FS_CALLBACK_LETTER 'S'
+
 /* GIF screensaver widget */
 #define LV_USE_GIF        1
 
