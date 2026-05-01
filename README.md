@@ -92,6 +92,7 @@ Built-in libraries (shipped with the ESP32 Arduino Core) require no separate ins
 |---|---|---|---|
 | **M5Unified** | M5Stack | ≥ 0.2.6 | Arduino Library Manager |
 | **M5GFX** | M5Stack | ≥ 0.2.4 | Arduino Library Manager |
+| **M5Dial** | M5Stack | ≥ 1.0.3 | Arduino Library Manager |
 | **lvgl** | LVGL LLC (kisvegabor) | ≥ 9.2.0 | Arduino Library Manager |
 | **ESP32-BLE-Keyboard** | T-vK | 0.3.3-beta | [GitHub](https://github.com/T-vK/ESP32-BLE-Keyboard) |
 
