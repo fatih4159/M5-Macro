@@ -11,11 +11,6 @@
 - [Features](#-features)
 - [Hardware](#-hardware)
 - [Getting Started](#-getting-started)
-  - [1. Clone the Repository](#1-clone-the-repository)
-  - [2. Open in Arduino IDE](#2-open-in-arduino-ide)
-  - [3. Install Dependencies](#3-install-dependencies)
-  - [4. Configure Arduino Settings](#4-configure-arduino-settings)
-  - [5. Flash the Device](#5-flash-the-device)
 - [Usage](#-usage)
 - [Web Editor](#-web-editor)
 - [Macro Syntax](#-macro-syntax)
@@ -66,6 +61,8 @@ Designed exclusively for the **[M5Dial](https://docs.m5stack.com/en/core/M5Dial)
 
 ## 🚀 Getting Started
 
+> **Build status:** This project currently builds with **PlatformIO only**. The Arduino IDE build flow is currently not supported because the dependency combination `M5GFX` 0.2.20 and `LVGL` 9.5.0 needs the PlatformIO compatibility wrapper in `lvgl/lvgl.h`.
+
 ### 1. Clone the Repository
 
 ```bash
@@ -73,7 +70,21 @@ git clone https://github.com/fatih4159/M5-Macro.git
 cd M5-Macro
 ```
 
-### 2. Open in Arduino IDE
+### 2. Build with PlatformIO
+
+Install PlatformIO and build from the repository root:
+
+```bash
+pio run
+```
+
+If `pio` is not on your PATH, use the PlatformIO executable from your local installation. On Windows with the VS Code PlatformIO extension this is commonly:
+
+```powershell
+& "$env:USERPROFILE\.platformio\penv\Scripts\platformio.exe" run
+```
+
+The Arduino IDE instructions below are kept for reference only and are not the supported build path at the moment.
 
 Open the main sketch file:
 
@@ -81,7 +92,9 @@ Open the main sketch file:
 M5-Macro/M5-Macro.ino
 ```
 
-### 3. Install Dependencies
+### 3. Arduino IDE Dependency Reference
+
+This section is kept only as historical reference. The project is currently not buildable with the Arduino IDE; use PlatformIO for compiling and uploading.
 
 Install the following libraries via **Arduino IDE → Tools → Manage Libraries** or the links below.  
 Built-in libraries (shipped with the ESP32 Arduino Core) require no separate installation.
@@ -139,7 +152,18 @@ Open **Tools** in the Arduino IDE and apply the following settings:
 
 1. Connect the M5Dial via USB-C.
 2. If the device does not appear as a COM port, hold **BOOT** and press **RESET** to enter download mode.
-3. Select the correct port in Arduino IDE and click **Upload**.
+3. Upload with PlatformIO:
+
+```bash
+pio run --target upload
+```
+
+   On Windows with the VS Code PlatformIO extension:
+
+```powershell
+& "$env:USERPROFILE\.platformio\penv\Scripts\platformio.exe" run --target upload
+```
+
 4. After flashing, press **RESET** once to boot into normal mode.
 
 ---

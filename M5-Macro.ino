@@ -43,6 +43,10 @@ USBHIDKeyboard Keyboard;
 static bool  s_executing   = false;   // Prevents double execution
 static int   s_enc_accum   = 0;       // Accumulated encoder value
 
+static uint32_t lvgl_millis() {
+    return (uint32_t)millis();
+}
+
 // ── Encoder handling ────────────────────────────────────────────────────────
 // Called once per loop(), BEFORE lv_timer_handler().
 static void handle_encoder() {
@@ -122,7 +126,7 @@ void setup() {
 
     // 4. Initialize LVGL
     lv_init();
-    lv_tick_set_cb(millis);  // LVGL v9: runtime tick source (replaces LV_TICK_CUSTOM)
+    lv_tick_set_cb(lvgl_millis);  // LVGL v9: runtime tick source (replaces LV_TICK_CUSTOM)
     lvgl_driver_init();
 
     // 5. Initialize macros (hardcoded, no filesystem needed)
