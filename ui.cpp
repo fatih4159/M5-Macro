@@ -2,8 +2,6 @@
 #include "macro_store.h"
 #include "config.h"
 #include "web_server.h"
-#include "ble_keyboard_hid.h"
-#include "macro_executor.h"
 #include <Preferences.h>
 
 static uint32_t c_bg       = 0x000000;
@@ -15,7 +13,6 @@ static uint32_t c_text_dim = 0x888888;
 
 static lv_obj_t* s_roller = nullptr;
 static lv_obj_t* s_wifi_btn = nullptr;
-static lv_obj_t* s_ble_btn = nullptr;
 static lv_obj_t* s_path_label = nullptr;
 
 static int s_visible_ids[MAX_STORE_ITEMS + 1];
@@ -52,7 +49,7 @@ static void wifi_btn_cb(lv_event_t* /*e*/) {
 static void create_wifi_button(lv_obj_t* parent) {
     s_wifi_btn = lv_btn_create(parent);
     lv_obj_set_size(s_wifi_btn, 36, 36);
-    lv_obj_align(s_wifi_btn, LV_ALIGN_TOP_MID, -25, 10);
+    lv_obj_align(s_wifi_btn, LV_ALIGN_TOP_MID, 0, 10);
     lv_obj_set_style_radius(s_wifi_btn, LV_RADIUS_CIRCLE, 0);
     lv_obj_set_style_bg_color(s_wifi_btn, lv_color_hex(c_sel_bg), 0);
     lv_obj_set_style_bg_opa(s_wifi_btn, LV_OPA_COVER, 0);
@@ -64,43 +61,6 @@ static void create_wifi_button(lv_obj_t* parent) {
     lv_label_set_text(icon, LV_SYMBOL_WIFI);
     lv_obj_center(icon);
     update_wifi_btn_color();
-}
-
-static void update_ble_btn_color() {
-    if (!s_ble_btn) return;
-    lv_obj_t* icon = lv_obj_get_child(s_ble_btn, 0);
-    bool en = ble_keyboard_enabled();
-    lv_obj_set_style_text_color(icon, en ? lv_color_hex(c_accent) : lv_color_hex(c_text_dim), 0);
-    lv_obj_set_style_border_width(s_ble_btn, en ? 2 : 0, 0);
-    lv_obj_set_style_border_color(s_ble_btn, lv_color_white(), 0);
-}
-
-static void ble_btn_cb(lv_event_t* /*e*/) {
-    if (ble_keyboard_enabled()) {
-        ble_keyboard_disable();
-        macro_set_output_ble(false);
-    } else {
-        ble_keyboard_enable();
-        macro_set_output_ble(true);
-    }
-    update_ble_btn_color();
-}
-
-static void create_ble_button(lv_obj_t* parent) {
-    s_ble_btn = lv_btn_create(parent);
-    lv_obj_set_size(s_ble_btn, 36, 36);
-    lv_obj_align(s_ble_btn, LV_ALIGN_TOP_MID, 25, 10);
-    lv_obj_set_style_radius(s_ble_btn, LV_RADIUS_CIRCLE, 0);
-    lv_obj_set_style_bg_color(s_ble_btn, lv_color_hex(c_sel_bg), 0);
-    lv_obj_set_style_bg_opa(s_ble_btn, LV_OPA_COVER, 0);
-    lv_obj_set_style_border_width(s_ble_btn, 0, 0);
-    lv_obj_set_style_shadow_width(s_ble_btn, 0, 0);
-    lv_obj_add_event_cb(s_ble_btn, ble_btn_cb, LV_EVENT_CLICKED, nullptr);
-
-    lv_obj_t* icon = lv_label_create(s_ble_btn);
-    lv_label_set_text(icon, LV_SYMBOL_BLUETOOTH);
-    lv_obj_center(icon);
-    update_ble_btn_color();
 }
 
 static void refresh_path_label() {
@@ -191,7 +151,6 @@ void ui_init() {
     lv_obj_set_style_bg_opa(scr, LV_OPA_COVER, 0);
 
     create_wifi_button(scr);
-    create_ble_button(scr);
     //create_header_label(scr);
     create_roller(scr);
 }
@@ -259,10 +218,6 @@ void ui_apply_colors() {
     if (s_wifi_btn) {
         lv_obj_set_style_bg_color(s_wifi_btn, lv_color_hex(c_sel_bg), 0);
         update_wifi_btn_color();
-    }
-    if (s_ble_btn) {
-        lv_obj_set_style_bg_color(s_ble_btn, lv_color_hex(c_sel_bg), 0);
-        update_ble_btn_color();
     }
     lv_timer_handler();
 }

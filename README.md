@@ -1,6 +1,6 @@
 # m5Macro
 
-> A compact, programmable **USB & Bluetooth HID macro pad** built on the **M5Dial (ESP32-S3)**.  
+> A compact, programmable **USB HID macro pad** built on the **M5Dial (ESP32-S3)**.  
 > Select macros with the rotary encoder, execute them instantly as real keyboard input — no drivers required.  
 > Manage everything through a built-in **browser-based web editor**.
 
@@ -27,11 +27,9 @@
 | Feature | Description |
 |---|---|
 | **USB HID Keyboard** | Plug & play — recognized as a standard keyboard, no drivers needed |
-| **Bluetooth HID Keyboard** | Execute macros wirelessly via BLE (toggle on/off from the display) |
 | **Rotary Encoder Control** | Rotate to browse macros, press to execute |
 | **Circular LVGL UI** | Smooth roller widget on the 240×240 round display |
 | **Wi-Fi Toggle Button** | Enable/disable the Wi-Fi AP directly on the device display |
-| **Bluetooth Toggle Button** | Enable/disable BLE output directly on the device display; active state shown with white border |
 | **Web-Based Macro Editor** | Create, edit, reorder, and delete macros from any browser |
 | **Standalone Wi-Fi AP** | No router needed — the device opens its own hotspot |
 | **Energy Saving** | Configurable dim timeout, display-off mode, or animated GIF screensaver |
@@ -54,7 +52,6 @@ Designed exclusively for the **[M5Dial](https://docs.m5stack.com/en/core/M5Dial)
 | Display | 240×240 round TFT (GC9A01 driver) |
 | Input | Rotary encoder + capacitive touch (FT3267) |
 | USB | Native USB-OTG via TinyUSB (HID keyboard) |
-| Bluetooth | BLE 5.0 HID keyboard |
 | Filesystem | LittleFS (880 KB partition) |
 
 ---
@@ -107,12 +104,9 @@ Built-in libraries (shipped with the ESP32 Arduino Core) require no separate ins
 | **M5GFX** | M5Stack | ≥ 0.2.4 | Arduino Library Manager |
 | **M5Dial** | M5Stack | ≥ 1.0.3 | Arduino Library Manager |
 | **lvgl** | LVGL LLC (kisvegabor) | ≥ 9.2.0 | Arduino Library Manager |
-| **ESP32-BLE-Keyboard** | T-vK | 0.3.3-beta | [GitHub](https://github.com/T-vK/ESP32-BLE-Keyboard) |
 | **AnimatedGIF** | Larry Bank | 2.2.0 | Arduino Library Manager |
 
 
-> **ESP32-BLE-Keyboard** is not in the Arduino Library Manager.  
-> Download the `.zip` from GitHub and install via **Sketch → Include Library → Add .ZIP Library**.
 
 #### Built-in Libraries (ESP32 Arduino Core ≥ 3.x)
 
@@ -180,12 +174,11 @@ pio run --target upload
 
 ### Display Buttons
 
-Two icon buttons appear on the device screen above the roller:
+A Wi-Fi icon button appears on the device screen above the roller:
 
 | Button | Function |
 |---|---|
 | Wi-Fi icon | Toggle the Wi-Fi Access Point on/off |
-| Bluetooth icon | Toggle BLE HID output on/off |
 
 An active button is shown with a **white border**. When the display is dimmed (energy-saving mode), the first encoder interaction wakes the display without executing a macro.
 
@@ -338,7 +331,7 @@ The custom `partitions.csv` layout:
 
 - **Macro execution is blocking** — the UI freezes while a macro runs.
 - **No HTTPS** — the web editor runs over plain HTTP.
-- **Single output mode per step** — both USB and BLE can be active simultaneously, but are not synchronized (BLE requires an active connection).
+- **USB-only output** — Bluetooth HID was removed to keep macro execution deterministic, avoid pairing/connection state, reduce idle radio power draw, and limit accidental wireless keystroke exposure.
 - **GIF screensaver uses RAM/PSRAM** — very large GIF files may fail to load on devices without PSRAM.
 
 ---

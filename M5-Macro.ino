@@ -34,7 +34,6 @@ USBHIDKeyboard Keyboard;
 #include "lvgl_driver.h"
 #include "macro_store.h"
 #include "macro_executor.h"
-#include "ble_keyboard_hid.h"
 #include "ui.h"
 #include "web_server.h"
 #include "energy_save.h"
@@ -104,17 +103,14 @@ static void handle_button() {
 
 // ── Setup ───────────────────────────────────────────────────────────────────
 void setup() {
-    // 1. Prepare BLE state. BLE itself starts only when the user enables it.
-    ble_keyboard_init();
-
-    // 2. Initialize USB (ESP32-S3 TinyUSB)
+    // 1. Initialize USB (ESP32-S3 TinyUSB)
     USB.productName("m5Macro Keyboard");
     USB.manufacturerName("m5Stack");
     USB.begin();
     Keyboard.begin();
     delay(500); // Wait for USB enumeration
 
-    // 3. Initialize M5Dial hardware
+    // 2. Initialize M5Dial hardware
     //    Parameters: config, enable encoder, disable RFID
     auto cfg = M5.config();
     M5Dial.begin(cfg, true, false);
@@ -124,21 +120,21 @@ void setup() {
     // Set encoder reference position
     M5Dial.Encoder.readAndReset();
 
-    // 4. Initialize LVGL
+    // 3. Initialize LVGL
     lv_init();
     lv_tick_set_cb(lvgl_millis);  // LVGL v9: runtime tick source (replaces LV_TICK_CUSTOM)
     lvgl_driver_init();
 
-    // 5. Initialize macros (hardcoded, no filesystem needed)
+    // 4. Initialize macros (hardcoded, no filesystem needed)
     macro_store_init();
 
-    // 6. Build UI
+    // 5. Build UI
     ui_init();
 
-    // 7. Initialize energy-saving mode (also sets display brightness)
+    // 6. Initialize energy-saving mode (also sets display brightness)
     energy_save_init();
 
-    // 8. Start web editor (WiFi AP + HTTP server)
+    // 7. Start web editor (WiFi AP + HTTP server)
     web_server_init();
 
     LOG_I("BOOT", "ready - WiFi disabled by default");
