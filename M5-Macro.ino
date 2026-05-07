@@ -17,13 +17,6 @@
  *   Press encoder   → Execute macro
  */
 
-// ── USB must be included first ──────────────────────────────────────────────
-#include "USB.h"
-#include "USBHIDKeyboard.h"
-
-// Global keyboard instance (declared as extern in macro_executor.h)
-USBHIDKeyboard Keyboard;
-
 // ── Additional libraries ────────────────────────────────────────────────────
 #include <M5Dial.h>
 #include <lvgl.h>
@@ -37,6 +30,7 @@ USBHIDKeyboard Keyboard;
 #include "ui.h"
 #include "web_server.h"
 #include "energy_save.h"
+#include "hid_connection.h"
 
 // ── State variables ─────────────────────────────────────────────────────────
 static bool  s_executing   = false;   // Prevents double execution
@@ -103,11 +97,8 @@ static void handle_button() {
 
 // ── Setup ───────────────────────────────────────────────────────────────────
 void setup() {
-    // 1. Initialize USB (ESP32-S3 TinyUSB)
-    USB.productName("m5Macro Keyboard");
-    USB.manufacturerName("m5Stack");
-    USB.begin();
-    Keyboard.begin();
+    // 1. Initialize HID output (USB by default, Bluetooth if persisted)
+    hid_connection_init();
     delay(500); // Wait for USB enumeration
 
     // 2. Initialize M5Dial hardware

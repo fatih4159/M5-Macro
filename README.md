@@ -26,7 +26,7 @@
 
 | Feature | Description |
 |---|---|
-| **USB HID Keyboard** | Plug & play — recognized as a standard keyboard, no drivers needed |
+| **USB / Bluetooth HID Keyboard** | Switch output mode in the web UI; selected mode is restored after reboot or power loss |
 | **Rotary Encoder Control** | Rotate to browse macros, press to execute |
 | **Circular LVGL UI** | Smooth roller widget on the 240×240 round display |
 | **Wi-Fi Toggle Button** | Enable/disable the Wi-Fi AP directly on the device display |
@@ -105,6 +105,7 @@ Built-in libraries (shipped with the ESP32 Arduino Core) require no separate ins
 | **M5Dial** | M5Stack | ≥ 1.0.3 | Arduino Library Manager |
 | **lvgl** | LVGL LLC (kisvegabor) | ≥ 9.2.0 | Arduino Library Manager |
 | **AnimatedGIF** | Larry Bank | 2.2.0 | Arduino Library Manager |
+| **ESP32 BLE Keyboard** | T-vK | 0.3.2 | PlatformIO / Arduino Library Manager |
 
 
 
@@ -113,6 +114,7 @@ Built-in libraries (shipped with the ESP32 Arduino Core) require no separate ins
 | Library | Purpose |
 |---|---|
 | `USB` / `USBHIDKeyboard` | TinyUSB HID keyboard output |
+| `BLE` | Bluetooth HID keyboard output |
 | `WiFi` | Wi-Fi Access Point |
 | `WebServer` | HTTP server for the web editor |
 | `Preferences` | NVS key-value storage |
@@ -200,7 +202,7 @@ The SSID and password can be changed in the **Settings → Wi-Fi** panel of the 
 - **Sidebar** — lists all saved macros with index numbers.
 - **Step builder** — add/remove/reorder steps visually (Key, Combo, Text, Delay).
 - **Ctrl + S** — keyboard shortcut to save the current macro.
-- **Settings modal** — Wi-Fi credentials, energy saving, display colors, web UI colors, system log, restart/bootloader.
+- **Settings modal** — Wi-Fi credentials, keyboard output mode, energy saving, display colors, web UI colors, system log, restart/bootloader.
 - **GIF screensaver upload** — upload a `.gif` file directly from the browser (Settings → Energy Saving → GIF screensaver mode).
 
 ---
@@ -263,6 +265,8 @@ Base URL: `http://192.168.4.1`
 | `GET` | `/api/status` | Filesystem status & macro count |
 | `GET` | `/api/settings` | Get Wi-Fi SSID |
 | `POST` | `/api/settings` | Set Wi-Fi SSID & password (triggers restart) |
+| `GET` | `/api/hid` | Get active keyboard output mode and Bluetooth connection state |
+| `POST` | `/api/hid` | Set keyboard output mode (`usb` or `bluetooth`) |
 | `GET` | `/api/energy` | Get energy-saving settings |
 | `POST` | `/api/energy` | Update energy-saving settings |
 | `GET` | `/api/colors` | Get display (firmware) color theme |
@@ -301,7 +305,7 @@ Compile-time defaults are defined in `config.h`:
 | `WIFI_AP_PASS` | `"m5macro1"` | Default Wi-Fi password (min. 8 chars) |
 | `WEB_SERVER_PORT` | `80` | HTTP server port |
 
-All energy-saving and Wi-Fi settings can also be changed at runtime through the web editor and are persisted in NVS.
+All energy-saving, Wi-Fi, and keyboard output settings can also be changed at runtime through the web editor and are persisted in NVS.
 
 ---
 
@@ -312,6 +316,7 @@ All energy-saving and Wi-Fi settings can also be changed at runtime through the 
 | Macros | LittleFS | One file per macro in the `880 KB` LittleFS partition |
 | Screensaver GIF | LittleFS | Stored as `/screensaver.gif` |
 | Wi-Fi credentials | NVS (`wifi` namespace) | Survives firmware updates |
+| Keyboard output mode | NVS (`hid` namespace) | Survives reboot and power loss |
 | Energy settings | NVS (`energy` namespace) | Survives firmware updates |
 | Display colors | NVS (`colors` namespace) | Survives firmware updates |
 | Web UI colors | NVS (`webclr` namespace) | Survives firmware updates |
@@ -331,7 +336,7 @@ The custom `partitions.csv` layout:
 
 - **Macro execution is blocking** — the UI freezes while a macro runs.
 - **No HTTPS** — the web editor runs over plain HTTP.
-- **USB-only output** — Bluetooth HID was removed to keep macro execution deterministic, avoid pairing/connection state, reduce idle radio power draw, and limit accidental wireless keystroke exposure.
+- **Bluetooth output requires pairing** — when Bluetooth mode is active, macros are sent only after a host has connected to the `m5Macro BLE` device. The pairing PIN is shown in the web UI.
 - **GIF screensaver uses RAM/PSRAM** — very large GIF files may fail to load on devices without PSRAM.
 
 ---

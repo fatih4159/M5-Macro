@@ -2,13 +2,14 @@
 #include "macro_store.h"
 #include "macro_parser.h"
 #include "config.h"
+#include "hid_connection.h"
 
 // ── Execute single step ──────────────────────────────────────────────────────
 static void executeStep(const MacroStep& s) {
     switch (s.type) {
 
         case STEP_TEXT:
-            Keyboard.print(s.text);
+            hid_connection_print(s.text);
             delay(STEP_GAP_MS);
             break;
 
@@ -18,22 +19,22 @@ static void executeStep(const MacroStep& s) {
 
         case STEP_KEY:
             if (s.keycode != 0) {
-                Keyboard.press(s.keycode);
+                hid_connection_press(s.keycode);
                 delay(KEY_HOLD_MS);
-                Keyboard.releaseAll();
+                hid_connection_release_all();
                 delay(STEP_GAP_MS);
             }
             break;
 
         case STEP_COMBO:
             for (int i = 0; i < s.mod_count; i++) {
-                Keyboard.press(s.modifiers[i]);
+                hid_connection_press(s.modifiers[i]);
             }
             if (s.keycode != 0) {
-                Keyboard.press(s.keycode);
+                hid_connection_press(s.keycode);
             }
             delay(KEY_HOLD_MS);
-            Keyboard.releaseAll();
+            hid_connection_release_all();
             delay(STEP_GAP_MS);
             break;
     }
@@ -49,5 +50,5 @@ void macro_execute(int macro_id) {
         executeStep(step);
     }
 
-    Keyboard.releaseAll();
+    hid_connection_release_all();
 }

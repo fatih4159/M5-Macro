@@ -3,6 +3,7 @@
 #include "ui.h"
 #include "config.h"
 #include "energy_save.h"
+#include "hid_connection.h"
 #include "logger.h"
 #include <WiFi.h>
 #include <WebServer.h>
@@ -170,6 +171,12 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
 .clr-row{display:flex;align-items:center;justify-content:space-between;gap:8px}
 .clr-lbl{color:#666666;font-size:11px;flex:1}
 .clr-inp{width:44px;height:28px;padding:2px 3px;background:var(--clr-bg);border:1px solid #333333;border-radius:4px;cursor:pointer}
+.hid-status{color:#666666;font-size:11px;line-height:1.45}
+.hid-mode{display:grid;grid-template-columns:1fr 1fr;gap:6px}
+.hid-opt{position:relative;display:block;cursor:pointer}
+.hid-opt input{position:absolute;opacity:0;pointer-events:none}
+.hid-opt span{display:flex;align-items:center;justify-content:center;min-height:38px;background:#141414;border:1px solid #222222;border-radius:4px;color:#666666;font-size:11px;font-weight:bold;text-transform:uppercase;letter-spacing:.5px}
+.hid-opt input:checked+span{background:#1e1e1e;color:#e0e0e0;border-color:#666666}
 @media(min-width:600px){
   .hbg{display:none}
   .sb-x{display:none!important}
@@ -215,6 +222,19 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
         <div class="modal-fg"><label class="modal-lbl">SSID</label><input type="text" class="modal-inp" id="cfg-ssid" maxlength="32" placeholder="m5Macro" autocomplete="off"></div>
         <div class="modal-fg"><label class="modal-lbl">Password (min. 8 chars)</label><input type="password" class="modal-inp" id="cfg-pass" maxlength="63" placeholder="(leave unchanged)" autocomplete="new-password"></div>
         <button class="btn-s prim" onclick="saveSettings()">&#10003; Save &amp; Restart</button>
+      </div>
+    </div>
+    <div class="s-sect">
+      <button class="s-hdr" id="sh-hid" onclick="togSect('sb-hid','sh-hid')">
+        <span>&#9000;</span><span class="s-ttl">Keyboard Output</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body closed" id="sb-hid">
+        <div class="hid-mode">
+          <label class="hid-opt"><input type="radio" name="cfg-hid-mode" value="usb" id="cfg-hid-usb"><span>USB</span></label>
+          <label class="hid-opt"><input type="radio" name="cfg-hid-mode" value="bluetooth" id="cfg-hid-ble"><span>Bluetooth</span></label>
+        </div>
+        <div class="hid-status" id="cfg-hid-status">USB active</div>
+        <button class="btn-s" onclick="saveHidMode()">&#10003; Save output mode</button>
       </div>
     </div>
     <div class="s-sect">
@@ -330,6 +350,7 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
   <button class="hbg" onclick="openSB()" aria-label="Menu"><span></span><span></span><span></span></button>
   <div class="conn" id="conn"></div>
   <h1>m5Macro</h1><span class="sub">Editor</span>
+  <span class="ip-badge" id="hid-badge">USB</span>
   <span class="ip-badge" id="ip-badge">192.168.4.1</span>
   <button class="settings-btn" onclick="openSettings()" title="Settings">&#9881;</button>
 </header>
@@ -366,11 +387,12 @@ function openSettings(){
   Promise.all([
     fetch('/api/settings').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/energy').then(function(r){return r.json();}).catch(function(){return{};}),
+    fetch('/api/hid').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/colors').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/webcolors').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/screensaver').then(function(r){return r.json();}).catch(function(){return{};})
   ]).then(function(res){
-    var j=res[0],e=res[1],fc=res[2],wc=res[3],ss=res[4];
+    var j=res[0],e=res[1],hid=res[2],fc=res[3],wc=res[4],ss=res[5];
     document.getElementById('cfg-ssid').value=j.ssid||'';
     document.getElementById('cfg-pass').value='';
     document.getElementById('modal-st').textContent='';
@@ -380,6 +402,7 @@ function openSettings(){
     if(e.dim_br!==undefined){document.getElementById('cfg-es-db').value=e.dim_br;document.getElementById('cfg-es-dbv').textContent=e.dim_br;}
     if(e.active_br!==undefined){document.getElementById('cfg-es-ab').value=e.active_br;document.getElementById('cfg-es-abv').textContent=e.active_br;}
     if(e.ss_mode!==undefined){document.getElementById('cfg-ss-mode').value=e.ss_mode;onSsModeChange();}
+    applyHidState(hid);
     var ssst=document.getElementById('ss-gif-st');
     if(ssst){if(ss.has_gif){ssst.textContent='GIF: uploaded \u2713';ssst.style.color='#aaaaaa';}else{ssst.textContent='No GIF uploaded';ssst.style.color='#666666';}}
     if(fc.bg!==undefined){
@@ -405,6 +428,38 @@ function closeSettings(){document.getElementById('settings-modal').classList.rem
 function togSect(bodyId,hdrId){var b=document.getElementById(bodyId);var h=document.getElementById(hdrId);var closing=!b.classList.contains('closed');b.classList.toggle('closed',closing);h.classList.toggle('open',!closing);}
 
 function mst(msg,cls){var el=document.getElementById('modal-st');el.textContent=msg;el.className='modal-st'+(cls?' '+cls:'');}
+
+function applyHidState(h){
+  h=h||{};
+  var mode=h.mode==='bluetooth'?'bluetooth':'usb';
+  var pin=(h.pairing_pin||'').toString().padStart(6,'0');
+  var usb=document.getElementById('cfg-hid-usb'),ble=document.getElementById('cfg-hid-ble');
+  if(usb)usb.checked=mode==='usb';
+  if(ble)ble.checked=mode==='bluetooth';
+  var badge=document.getElementById('hid-badge');
+  if(badge)badge.textContent=mode==='bluetooth'?'BLE':'USB';
+  var status=document.getElementById('cfg-hid-status');
+  if(status){
+    if(mode==='bluetooth')status.innerHTML=(h.ble_connected?'Bluetooth active, host connected':'Bluetooth active, waiting for pairing/connection')+'<br>Pairing PIN: <strong style="color:#dddddd;letter-spacing:1px">'+pin+'</strong>';
+    else status.textContent='USB active';
+  }
+}
+
+async function refreshHidState(){
+  try{var r=await fetch('/api/hid');applyHidState(await r.json());}catch(e){}
+}
+
+async function saveHidMode(){
+  var el=document.querySelector('input[name="cfg-hid-mode"]:checked');
+  var mode=el?el.value:'usb';
+  mst('Saving...');
+  try{
+    var r=await fetch('/api/hid',{method:'POST',body:new URLSearchParams({mode:mode})});
+    var j=await r.json();
+    if(j.ok){applyHidState(j);mst('Output mode saved!','ok');}
+    else mst('Error: '+(j.err||'?'),'err');
+  }catch(e){mst('Connection error','err');}
+}
 
 async function saveSettings(){
   var ssid=(document.getElementById('cfg-ssid').value||'').trim();
@@ -611,6 +666,7 @@ async function load(){
     var ip=r.headers.get('X-Device-IP');if(ip)document.getElementById('ip-badge').textContent=ip;
   }catch(e){setOnline(false);st('Connection error','#cc4444');}
   fetch('/api/webcolors').then(function(r){return r.json();}).then(applyWebColors).catch(function(){});
+  refreshHidState();
 }
 
 function findItem(id){return macros.find(function(m){return m.id===id;})||null;}
@@ -1014,6 +1070,50 @@ static void handle_api_settings_post() {
     ESP.restart();
 }
 
+static String hid_status_json(bool ok = true, const char* err = nullptr) {
+    String json = "{";
+    json += "\"ok\":" + String(ok ? "true" : "false");
+    if (err) {
+        json += ",\"err\":" + json_str(err);
+    }
+    json += ",\"mode\":" + json_str(hid_connection_mode_name());
+    json += ",\"ready\":" + String(hid_connection_ready() ? "true" : "false");
+    json += ",\"ble_connected\":" + String(hid_connection_ble_connected() ? "true" : "false");
+    json += ",\"pairing_pin\":" + String(hid_connection_pairing_pin());
+    json += "}";
+    return json;
+}
+
+static void handle_api_hid_get() {
+    server.send(200, "application/json", hid_status_json());
+}
+
+static void handle_api_hid_post() {
+    if (!server.hasArg("mode")) {
+        server.send(400, "application/json", hid_status_json(false, "Missing mode"));
+        return;
+    }
+
+    String mode_arg = server.arg("mode");
+    mode_arg.toLowerCase();
+    HidConnectionMode mode;
+    if (mode_arg == "usb") {
+        mode = HID_CONNECTION_USB;
+    } else if (mode_arg == "bluetooth" || mode_arg == "ble") {
+        mode = HID_CONNECTION_BLUETOOTH;
+    } else {
+        server.send(400, "application/json", hid_status_json(false, "Invalid mode"));
+        return;
+    }
+
+    if (!hid_connection_set_mode(mode)) {
+        server.send(500, "application/json", hid_status_json(false, "Switch failed"));
+        return;
+    }
+
+    server.send(200, "application/json", hid_status_json());
+}
+
 static void handle_api_restart() {
     server.send(200, "application/json", "{\"ok\":true}");
     delay(500);
@@ -1307,11 +1407,13 @@ static void register_routes() {
     server.on("/api/macros",             HTTP_GET,  handle_api_macros);
     server.on("/api/status",             HTTP_GET,  handle_api_status);
     server.on("/api/settings",           HTTP_GET,  handle_api_settings_get);
+    server.on("/api/hid",                HTTP_GET,  handle_api_hid_get);
     server.on("/api/save-macro",         HTTP_POST, handle_api_save_macro);
     server.on("/api/save-group",         HTTP_POST, handle_api_save_group);
     server.on("/api/delete-item",        HTTP_POST, handle_api_delete_item);
     server.on("/api/move-item",          HTTP_POST, handle_api_move_item);
     server.on("/api/settings",           HTTP_POST, handle_api_settings_post);
+    server.on("/api/hid",                HTTP_POST, handle_api_hid_post);
     server.on("/api/restart",            HTTP_POST, handle_api_restart);
     server.on("/api/restart-bootloader", HTTP_POST, handle_api_restart_bootloader);
     server.on("/api/energy",             HTTP_GET,  handle_api_energy_get);
