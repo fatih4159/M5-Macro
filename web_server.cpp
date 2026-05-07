@@ -8,6 +8,7 @@
 #include <WebServer.h>
 #include <Preferences.h>
 #include <LittleFS.h>
+#include <Update.h>
 #include "esp_system.h"
 #include "soc/rtc_cntl_reg.h"
 
@@ -311,6 +312,11 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
         <span>&#9888;</span><span class="s-ttl">Device</span><span class="s-chev">&#9654;</span>
       </button>
       <div class="s-body closed" id="sb-dev">
+        <div class="modal-fg">
+          <label class="modal-lbl">OTA firmware update (.bin)</label>
+          <input type="file" id="fw-file" accept=".bin,application/octet-stream" class="modal-inp" style="padding:7px;cursor:pointer">
+        </div>
+        <button class="btn-s prim" onclick="uploadFirmware()">&#8679; Upload firmware &amp; restart</button>
         <div class="modal-row">
           <button class="btn-restart" onclick="doRestart()">&#8635; Restart</button>
           <button class="btn-boot" onclick="doBootloader()">&#9660; Bootloader</button>
@@ -427,6 +433,22 @@ async function doBootloader(){
   mst('Bootloader...');
   try{await fetch('/api/restart-bootloader',{method:'POST'});}catch(e){}
   mst('Device is switching to bootloader mode...');
+}
+
+async function uploadFirmware(){
+  var inp=document.getElementById('fw-file');
+  var f=inp&&inp.files?inp.files[0]:null;
+  if(!f){mst('No firmware file selected.','err');return;}
+  if(!/\.bin$/i.test(f.name)&&!confirm('File does not end with .bin. Upload anyway?'))return;
+  if(!confirm('Upload firmware "'+f.name+'"? The device will restart after a successful update.'))return;
+  mst('Uploading firmware...');
+  var fd=new FormData();fd.append('firmware',f);
+  try{
+    var r=await fetch('/api/firmware/upload',{method:'POST',body:fd});
+    var j=await r.json();
+    if(j.ok)mst('Firmware uploaded. Device is restarting...','ok');
+    else mst('OTA error: '+(j.err||'?'),'err');
+  }catch(e){mst('Connection lost. If the upload completed, the device is restarting.','err');}
 }
 
 function parseSteps(raw){
@@ -1217,6 +1239,61 @@ static void handle_api_force_screensaver() {
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
+static bool s_ota_ok = false;
+static String s_ota_err;
+
+static void handle_firmware_upload_done() {
+    if (!s_ota_ok) {
+        String err = s_ota_err.length() ? s_ota_err : "Upload failed";
+        server.send(500, "application/json", "{\"ok\":false,\"err\":" + json_str(err) + "}");
+        return;
+    }
+
+    server.send(200, "application/json", "{\"ok\":true}");
+    delay(500);
+    ESP.restart();
+}
+
+static void handle_firmware_upload() {
+    HTTPUpload& upload = server.upload();
+
+    if (upload.status == UPLOAD_FILE_START) {
+        s_ota_ok = false;
+        s_ota_err = "";
+        LOG_I("WEB", "OTA upload started");
+
+        if (!Update.begin(UPDATE_SIZE_UNKNOWN, U_FLASH)) {
+            s_ota_err = "No OTA partition available or firmware too large";
+            LOG_E("WEB", "OTA begin failed, error %u", Update.getError());
+        }
+    } else if (upload.status == UPLOAD_FILE_WRITE) {
+        if (s_ota_err.length()) return;
+
+        size_t written = Update.write(upload.buf, upload.currentSize);
+        if (written != upload.currentSize) {
+            s_ota_err = "Write failed";
+            LOG_E("WEB", "OTA write failed, error %u", Update.getError());
+        }
+    } else if (upload.status == UPLOAD_FILE_END) {
+        if (s_ota_err.length()) {
+            Update.abort();
+            return;
+        }
+
+        if (Update.end(true)) {
+            s_ota_ok = true;
+            LOG_I("WEB", "OTA upload complete: %u bytes", upload.totalSize);
+        } else {
+            s_ota_err = "Update verification failed";
+            LOG_E("WEB", "OTA end failed, error %u", Update.getError());
+        }
+    } else if (upload.status == UPLOAD_FILE_ABORTED) {
+        Update.abort();
+        s_ota_err = "Upload aborted";
+        LOG_W("WEB", "OTA upload aborted");
+    }
+}
+
 static void handle_not_found() {
     server.send(404, "text/plain", "Not found");
 }
@@ -1247,6 +1324,7 @@ static void register_routes() {
     server.on("/api/screensaver",        HTTP_GET,  handle_api_screensaver_get);
     server.on("/api/screensaver/upload", HTTP_POST, handle_screensaver_upload_done, handle_screensaver_upload);
     server.on("/api/screensaver/delete", HTTP_POST, handle_api_screensaver_delete);
+    server.on("/api/firmware/upload",   HTTP_POST, handle_firmware_upload_done, handle_firmware_upload);
     server.on("/api/log",                HTTP_GET,  handle_api_log_get);
     server.on("/api/log/clear",          HTTP_POST, handle_api_log_clear);
     server.on("/api/force-screensaver",  HTTP_POST, handle_api_force_screensaver);
