@@ -2,6 +2,7 @@
 #include "macro_store.h"
 #include "ui.h"
 #include "config.h"
+#include "lvgl_driver.h"
 #include "energy_save.h"
 #include "hid_connection.h"
 #include "logger.h"
@@ -277,6 +278,23 @@ input:checked+.es-sl:before{transform:translateX(16px);background:#e0e0e0}
       </div>
     </div>
     <div class="s-sect">
+      <button class="s-hdr" id="sh-display" onclick="togSect('sb-display','sh-display')">
+        <span>&#8635;</span><span class="s-ttl">Display</span><span class="s-chev">&#9654;</span>
+      </button>
+      <div class="s-body closed" id="sb-display">
+        <div class="modal-fg">
+          <label class="modal-lbl">Screen rotation</label>
+          <select class="modal-inp" id="cfg-display-rotation">
+            <option value="0">0&deg;</option>
+            <option value="90">90&deg;</option>
+            <option value="180">180&deg;</option>
+            <option value="270">270&deg;</option>
+          </select>
+        </div>
+        <button class="btn-s" onclick="saveDisplay()">&#8635; Save display settings</button>
+      </div>
+    </div>
+    <div class="s-sect">
       <button class="s-hdr" id="sh-fwclr" onclick="togSect('sb-fwclr','sh-fwclr')">
         <span>&#9632;</span><span class="s-ttl">Display Colors</span><span class="s-chev">&#9654;</span>
       </button>
@@ -388,11 +406,12 @@ function openSettings(){
     fetch('/api/settings').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/energy').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/hid').then(function(r){return r.json();}).catch(function(){return{};}),
+    fetch('/api/display').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/colors').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/webcolors').then(function(r){return r.json();}).catch(function(){return{};}),
     fetch('/api/screensaver').then(function(r){return r.json();}).catch(function(){return{};})
   ]).then(function(res){
-    var j=res[0],e=res[1],hid=res[2],fc=res[3],wc=res[4],ss=res[5];
+    var j=res[0],e=res[1],hid=res[2],dc=res[3],fc=res[4],wc=res[5],ss=res[6];
     document.getElementById('cfg-ssid').value=j.ssid||'';
     document.getElementById('cfg-pass').value='';
     document.getElementById('modal-st').textContent='';
@@ -403,6 +422,7 @@ function openSettings(){
     if(e.active_br!==undefined){document.getElementById('cfg-es-ab').value=e.active_br;document.getElementById('cfg-es-abv').textContent=e.active_br;}
     if(e.ss_mode!==undefined){document.getElementById('cfg-ss-mode').value=e.ss_mode;onSsModeChange();}
     applyHidState(hid);
+    if(dc.rotation!==undefined)document.getElementById('cfg-display-rotation').value=dc.rotation;
     var ssst=document.getElementById('ss-gif-st');
     if(ssst){if(ss.has_gif){ssst.textContent='GIF: uploaded \u2713';ssst.style.color='#aaaaaa';}else{ssst.textContent='No GIF uploaded';ssst.style.color='#666666';}}
     if(fc.bg!==undefined){
@@ -820,6 +840,17 @@ async function saveEnergy(){
   }catch(e){mst('Connection error','err');}
 }
 
+async function saveDisplay(){
+  var rot=parseInt(document.getElementById('cfg-display-rotation').value)||0;
+  mst('Saving...');
+  try{
+    var r=await fetch('/api/display',{method:'POST',body:new URLSearchParams({rotation:rot})});
+    var j=await r.json();
+    if(j.ok)mst('Display settings saved!','ok');
+    else mst('Error: '+(j.err||'?'),'err');
+  }catch(e){mst('Connection error','err');}
+}
+
 async function uploadGif(){
   var f=document.getElementById('ss-gif-file').files[0];
   if(!f){mst('Keine Datei ausgewählt.');return;}
@@ -1172,6 +1203,32 @@ static void handle_api_energy_post() {
     server.send(200, "application/json", "{\"ok\":true}");
 }
 
+static void handle_api_display_get() {
+    String json = "{\"rotation\":" + String(lvgl_driver_get_rotation_degrees()) + "}";
+    server.send(200, "application/json", json);
+}
+
+static void handle_api_display_post() {
+    if (!server.hasArg("rotation")) {
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Missing rotation\"}");
+        return;
+    }
+
+    int rotation = server.arg("rotation").toInt();
+    if (rotation != 0 && rotation != 90 && rotation != 180 && rotation != 270) {
+        server.send(400, "application/json", "{\"ok\":false,\"err\":\"Invalid rotation\"}");
+        return;
+    }
+
+    if (!lvgl_driver_set_rotation_degrees((uint16_t)rotation)) {
+        server.send(500, "application/json", "{\"ok\":false,\"err\":\"Save failed\"}");
+        return;
+    }
+
+    String json = "{\"ok\":true,\"rotation\":" + String(rotation) + "}";
+    server.send(200, "application/json", json);
+}
+
 static void handle_api_colors_get() {
     Preferences prefs;
     prefs.begin("colors", true);
@@ -1418,6 +1475,8 @@ static void register_routes() {
     server.on("/api/restart-bootloader", HTTP_POST, handle_api_restart_bootloader);
     server.on("/api/energy",             HTTP_GET,  handle_api_energy_get);
     server.on("/api/energy",             HTTP_POST, handle_api_energy_post);
+    server.on("/api/display",            HTTP_GET,  handle_api_display_get);
+    server.on("/api/display",            HTTP_POST, handle_api_display_post);
     server.on("/api/colors",             HTTP_GET,  handle_api_colors_get);
     server.on("/api/colors",             HTTP_POST, handle_api_colors_post);
     server.on("/api/webcolors",          HTTP_GET,  handle_api_webcolors_get);

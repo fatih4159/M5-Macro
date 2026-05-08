@@ -2,9 +2,34 @@
 #include "lvgl_littlefs.h"
 #include "config.h"
 #include <M5Dial.h>
+#include <Preferences.h>
 
 // ── Render buffer (static, internal SRAM) ───────────────────────────────────
 static lv_color_t s_buf[DISPLAY_WIDTH * LV_BUF_LINES];
+static lv_display_t* s_disp = nullptr;
+
+namespace {
+    constexpr const char* PREF_NS = "display";
+    constexpr const char* KEY_ROTATION = "rotation";
+    constexpr uint16_t DEFAULT_ROTATION_DEGREES = 180;
+
+    bool is_valid_rotation(uint16_t degrees) {
+        return degrees == 0 || degrees == 90 || degrees == 180 || degrees == 270;
+    }
+
+    uint8_t rotation_to_index(uint16_t degrees) {
+        return (uint8_t)(degrees / 90);
+    }
+
+    void apply_rotation(uint16_t degrees) {
+        M5Dial.Display.setRotation(rotation_to_index(degrees));
+        if (s_disp) {
+            M5Dial.Display.fillScreen(0);
+            lv_obj_invalidate(lv_scr_act());
+            lv_refr_now(s_disp);
+        }
+    }
+}
 
 // ── Display flush callback ───────────────────────────────────────────────────
 // Called by LVGL when a region has been rendered.
@@ -42,9 +67,9 @@ static void touch_read(lv_indev_t* indev, lv_indev_data_t* data) {
 // ── Initialization ───────────────────────────────────────────────────────────
 void lvgl_driver_init() {
     // Create display, set buffer and flush callback
-    lv_display_t* disp = lv_display_create(DISPLAY_WIDTH, DISPLAY_HEIGHT);
-    lv_display_set_flush_cb(disp, disp_flush);
-    lv_display_set_buffers(disp, s_buf, nullptr, sizeof(s_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
+    s_disp = lv_display_create(DISPLAY_WIDTH, DISPLAY_HEIGHT);
+    lv_display_set_flush_cb(s_disp, disp_flush);
+    lv_display_set_buffers(s_disp, s_buf, nullptr, sizeof(s_buf), LV_DISPLAY_RENDER_MODE_PARTIAL);
 
     // Create touch input device
     lv_indev_t* touch_indev = lv_indev_create();
@@ -53,4 +78,31 @@ void lvgl_driver_init() {
 
     // Register LittleFS as LVGL drive 'S' (needed for lv_gif file loading)
     lvgl_littlefs_init();
+}
+
+void lvgl_driver_apply_saved_rotation() {
+    apply_rotation(lvgl_driver_get_rotation_degrees());
+}
+
+bool lvgl_driver_set_rotation_degrees(uint16_t degrees) {
+    if (!is_valid_rotation(degrees)) return false;
+
+    Preferences prefs;
+    if (!prefs.begin(PREF_NS, false)) return false;
+    prefs.putUInt(KEY_ROTATION, degrees);
+    prefs.end();
+
+    apply_rotation(degrees);
+    return true;
+}
+
+uint16_t lvgl_driver_get_rotation_degrees() {
+    Preferences prefs;
+    uint16_t degrees = DEFAULT_ROTATION_DEGREES;
+    if (prefs.begin(PREF_NS, true)) {
+        degrees = (uint16_t)prefs.getUInt(KEY_ROTATION, DEFAULT_ROTATION_DEGREES);
+        prefs.end();
+    }
+    if (!is_valid_rotation(degrees)) degrees = DEFAULT_ROTATION_DEGREES;
+    return degrees;
 }

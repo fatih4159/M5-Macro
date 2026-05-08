@@ -12,6 +12,8 @@ static uint32_t c_text     = 0xFFFFFF;
 static uint32_t c_text_dim = 0x888888;
 
 static lv_obj_t* s_roller = nullptr;
+static lv_obj_t* s_roller_fade_top = nullptr;
+static lv_obj_t* s_roller_fade_bottom = nullptr;
 static lv_obj_t* s_wifi_btn = nullptr;
 static lv_obj_t* s_path_label = nullptr;
 
@@ -117,6 +119,43 @@ static void create_header_label(lv_obj_t* parent) {
     refresh_path_label();
 }
 
+static void apply_roller_fade_style() {
+    if (!s_roller_fade_top || !s_roller_fade_bottom) return;
+
+    lv_obj_t* fades[] = { s_roller_fade_top, s_roller_fade_bottom };
+    for (lv_obj_t* fade : fades) {
+        lv_obj_set_style_bg_color(fade, lv_color_hex(c_surface), 0);
+        lv_obj_set_style_bg_opa(fade, LV_OPA_COVER, 0);
+        lv_obj_set_style_bg_grad_color(fade, lv_color_hex(c_surface), 0);
+        lv_obj_set_style_bg_grad_dir(fade, LV_GRAD_DIR_VER, 0);
+        lv_obj_set_style_border_width(fade, 0, 0);
+        lv_obj_set_style_shadow_width(fade, 0, 0);
+        lv_obj_set_style_radius(fade, 10, 0);
+    }
+
+    lv_obj_set_style_bg_main_opa(s_roller_fade_top, LV_OPA_COVER, 0);
+    lv_obj_set_style_bg_grad_opa(s_roller_fade_top, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_main_opa(s_roller_fade_bottom, LV_OPA_TRANSP, 0);
+    lv_obj_set_style_bg_grad_opa(s_roller_fade_bottom, LV_OPA_COVER, 0);
+}
+
+static void create_roller_fade(lv_obj_t* parent) {
+    s_roller_fade_top = lv_obj_create(parent);
+    s_roller_fade_bottom = lv_obj_create(parent);
+
+    lv_obj_set_size(s_roller_fade_top, 230, 42);
+    lv_obj_set_size(s_roller_fade_bottom, 230, 42);
+    lv_obj_align_to(s_roller_fade_top, s_roller, LV_ALIGN_TOP_MID, 50, 0);
+    lv_obj_align_to(s_roller_fade_bottom, s_roller, LV_ALIGN_BOTTOM_MID, -50, 0);
+
+    lv_obj_clear_flag(s_roller_fade_top, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(s_roller_fade_top, LV_OBJ_FLAG_SCROLLABLE);
+    lv_obj_clear_flag(s_roller_fade_bottom, LV_OBJ_FLAG_CLICKABLE);
+    lv_obj_clear_flag(s_roller_fade_bottom, LV_OBJ_FLAG_SCROLLABLE);
+
+    apply_roller_fade_style();
+}
+
 static void create_roller(lv_obj_t* parent) {
     s_roller = lv_roller_create(parent);
     lv_roller_set_visible_row_count(s_roller, 5);
@@ -142,6 +181,7 @@ static void create_roller(lv_obj_t* parent) {
     lv_obj_set_style_border_opa(s_roller, LV_OPA_50, LV_PART_SELECTED);
 
     rebuild_visible_items();
+    create_roller_fade(parent);
 }
 
 void ui_init() {
@@ -212,6 +252,7 @@ void ui_apply_colors() {
         lv_obj_set_style_text_color(s_roller, lv_color_hex(c_text), LV_PART_SELECTED);
         lv_obj_set_style_border_color(s_roller, lv_color_hex(c_accent), LV_PART_SELECTED);
     }
+    apply_roller_fade_style();
     if (s_path_label) {
         lv_obj_set_style_text_color(s_path_label, lv_color_hex(c_text_dim), 0);
     }

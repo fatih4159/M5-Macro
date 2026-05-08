@@ -105,7 +105,7 @@ void setup() {
     //    Parameters: config, enable encoder, disable RFID
     auto cfg = M5.config();
     M5Dial.begin(cfg, true, false);
-    M5Dial.Display.setRotation(2);
+    lvgl_driver_apply_saved_rotation();
     M5Dial.Display.setSwapBytes(true);
 
     // Set encoder reference position
